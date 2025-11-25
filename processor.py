@@ -109,10 +109,89 @@ def invert_intervals(intervals: List[Tuple[float, float]], total_duration: float
         
     if current_time < total_duration:
         keep_intervals.append((current_time, total_duration))
-        
     return keep_intervals
 
-def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -40, crossfade_duration: float = 0.1, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False):
+def get_encoding_params(use_gpu: bool, use_crf: bool, bitrate: str, crf: int, preset: str):
+    """
+    Get encoding parameters for CPU or GPU encoding.
+    
+    Args:
+        use_gpu: Whether to use GPU (NVENC) encoding
+        use_crf: Whether to use CRF mode (only for CPU)
+        bitrate: Target bitrate
+        crf: CRF value for quality
+        preset: Encoding preset
+    
+    Returns:
+        Tuple of (codec, preset_value, ffmpeg_params)
+    """
+    if use_gpu:
+        # GPU encoding with NVENC
+        # Check if NVENC is available (requires FFmpeg with NVENC support)
+        logging.info("GPU encoding requested - checking NVENC availability...")
+        
+        # Try to detect if NVENC is available
+        import subprocess
+        try:
+            result = subprocess.run(
+                ['ffmpeg', '-hide_banner', '-encoders'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if 'h264_nvenc' not in result.stdout:
+                logging.warning("NVENC encoder not found in FFmpeg. Falling back to CPU encoding.")
+                logging.warning("To enable GPU encoding, install FFmpeg with NVENC support.")
+                use_gpu = False
+        except Exception as e:
+            logging.warning(f"Could not check for NVENC: {e}. Falling back to CPU encoding.")
+            use_gpu = False
+    
+    if use_gpu:
+        logging.info("Using NVIDIA GPU (NVENC) for video encoding")
+        codec = "h264_nvenc"
+        
+        # NVENC presets: slow, medium, fast, hp, hq, bd, ll, llhq, llhp, lossless
+        # Map x264 presets to NVENC presets
+        nvenc_preset_map = {
+            "veryslow": "hq",
+            "slower": "hq",
+            "slow": "hq",
+            "medium": "medium",
+            "fast": "fast",
+            "faster": "fast",
+            "veryfast": "fast",
+            "superfast": "hp",
+            "ultrafast": "hp"
+        }
+        nvenc_preset = nvenc_preset_map.get(preset, "medium")
+        
+        # For GPU encoding, keep it simple
+        # MoviePy doesn't handle NVENC-specific parameters well
+        # Just use bitrate - NVENC will handle it efficiently
+        ffmpeg_params = []
+        
+        return codec, nvenc_preset, ffmpeg_params
+    else:
+        # CPU encoding with x264
+        logging.info("Using CPU (x264) for video encoding")
+        codec = "libx264"
+        
+        if use_crf:
+            # CRF mode: quality-based, variable bitrate
+            ffmpeg_params = [
+                '-crf', str(crf),
+                '-maxrate', bitrate,
+                '-bufsize', f'{int(bitrate.rstrip("k")) * 2}k'
+            ]
+        else:
+            # Constant bitrate mode: predictable file size
+            ffmpeg_params = ['-b:v', bitrate]
+        
+        return codec, preset, ffmpeg_params
+
+
+def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -40, crossfade_duration: float = 0.1, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False):
     if not os.path.exists(input_path):
         logging.error(f"Input file not found: {input_path}")
         return
@@ -158,23 +237,18 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         
         if len(keep_intervals) == 1 and keep_intervals[0] == (0.0, total_duration):
             logging.info("No cuts needed.")
-            # Choose encoding mode: CRF (quality-based) or constant bitrate
-            if use_crf:
-                # CRF mode: quality-based, variable bitrate
-                ffmpeg_params = [
-                    '-crf', str(crf),
-                    '-maxrate', bitrate,
-                    '-bufsize', f'{int(bitrate.rstrip("k")) * 2}k'
-                ]
-            else:
-                # Constant bitrate mode: predictable file size
-                ffmpeg_params = ['-b:v', bitrate]
+            
+            # Get encoding parameters (GPU or CPU)
+            codec, preset_value, ffmpeg_params = get_encoding_params(
+                use_gpu_encoding, use_crf, bitrate, crf, preset
+            )
             
             video.write_videofile(
                 output_path,
-                codec="libx264",
+                codec=codec,
                 audio_codec="aac",
-                preset=preset,
+                bitrate=bitrate if use_gpu_encoding else None,
+                preset=preset_value,
                 audio_bitrate="192k",
                 ffmpeg_params=ffmpeg_params
             )
@@ -222,23 +296,18 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         final_video = concatenate_videoclips(final_clips, method="compose", padding=-crossfade_duration if crossfade_duration > 0 else 0)
         
         logging.info(f"Writing output to {output_path}")
-        # Choose encoding mode: CRF (quality-based) or constant bitrate
-        if use_crf:
-            # CRF mode: quality-based, variable bitrate
-            ffmpeg_params = [
-                '-crf', str(crf),
-                '-maxrate', bitrate,
-                '-bufsize', f'{int(bitrate.rstrip("k")) * 2}k'
-            ]
-        else:
-            # Constant bitrate mode: predictable file size
-            ffmpeg_params = ['-b:v', bitrate]
+        
+        # Get encoding parameters (GPU or CPU)
+        codec, preset_value, ffmpeg_params = get_encoding_params(
+            use_gpu_encoding, use_crf, bitrate, crf, preset
+        )
         
         final_video.write_videofile(
             output_path,
-            codec="libx264",
+            codec=codec,
             audio_codec="aac",
-            preset=preset,
+            bitrate=bitrate if use_gpu_encoding else None,
+            preset=preset_value,
             audio_bitrate="192k",
             ffmpeg_params=ffmpeg_params
         )

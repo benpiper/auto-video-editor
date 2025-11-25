@@ -51,6 +51,11 @@ def main():
         action="store_true",
         help="Use CRF mode (quality-based) instead of constant bitrate mode.",
     )
+    parser.add_argument(
+        "--use-gpu-encoding",
+        action="store_true",
+        help="Use NVIDIA GPU (NVENC) for faster video encoding. Requires NVIDIA GPU.",
+    )
 
     args = parser.parse_args()
 
@@ -65,6 +70,7 @@ def main():
         args.crf,
         args.preset,
         args.use_crf,
+        args.use_gpu_encoding,
     )
     logging.info("Done.")
 

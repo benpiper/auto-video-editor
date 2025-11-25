@@ -27,6 +27,30 @@ def main():
         default=0.1,
         help="Crossfade duration in seconds (default: 0.1).",
     )
+    parser.add_argument(
+        "--bitrate",
+        type=str,
+        default="5000k",
+        help="Video bitrate (default: 5000k). Higher = better quality.",
+    )
+    parser.add_argument(
+        "--crf",
+        type=int,
+        default=18,
+        help="CRF quality (0-51, lower = better quality, default: 18).",
+    )
+    parser.add_argument(
+        "--preset",
+        type=str,
+        default="medium",
+        choices=["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"],
+        help="Encoding preset (default: medium). Slower = better compression.",
+    )
+    parser.add_argument(
+        "--use-crf",
+        action="store_true",
+        help="Use CRF mode (quality-based) instead of constant bitrate mode.",
+    )
 
     args = parser.parse_args()
 
@@ -37,6 +61,10 @@ def main():
         args.min_silence,
         args.silence_thresh,
         args.crossfade,
+        args.bitrate,
+        args.crf,
+        args.preset,
+        args.use_crf,
     )
     logging.info("Done.")
 

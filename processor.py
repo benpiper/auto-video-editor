@@ -34,7 +34,15 @@ def detect_silence(audio_path: str, min_silence_len: int = 2000, silence_thresh:
     )
     # Convert to seconds
     silence_intervals_sec = [(start / 1000, end / 1000) for start, end in silence_intervals_ms]
-    logging.info(f"Found {len(silence_intervals_sec)} silence intervals.")
+    
+    if silence_intervals_sec:
+        logging.info(f"Found {len(silence_intervals_sec)} silence intervals:")
+        for i, (start, end) in enumerate(silence_intervals_sec, 1):
+            duration = end - start
+            logging.info(f"  Silence {i}: {start:.2f}s - {end:.2f}s (duration: {duration:.2f}s)")
+    else:
+        logging.info("No silence intervals found.")
+    
     return silence_intervals_sec
 
 def detect_filler_words(audio_path: str, model_size: str = "base") -> List[Tuple[float, float]]:
@@ -58,9 +66,13 @@ def detect_filler_words(audio_path: str, model_size: str = "base") -> List[Tuple
         for word in segment["words"]:
             text = word["word"].strip().lower().replace(",", "").replace(".", "")
             if text in filler_words:
-                filler_intervals.append((word["start"], word["end"]))
+                start_time = word["start"]
+                end_time = word["end"]
+                duration = end_time - start_time
+                filler_intervals.append((start_time, end_time))
+                logging.info(f"  Filler word detected: '{text}' at {start_time:.2f}s - {end_time:.2f}s (duration: {duration:.2f}s)")
     
-    logging.info(f"Found {len(filler_intervals)} filler words.")
+    logging.info(f"Found {len(filler_intervals)} filler words total.")
     return filler_intervals
 
 def merge_intervals(intervals: List[Tuple[float, float]], min_gap: float = 0.1) -> List[Tuple[float, float]]:
@@ -100,7 +112,7 @@ def invert_intervals(intervals: List[Tuple[float, float]], total_duration: float
         
     return keep_intervals
 
-def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -40, crossfade_duration: float = 0.1):
+def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -40, crossfade_duration: float = 0.1, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False):
     if not os.path.exists(input_path):
         logging.error(f"Input file not found: {input_path}")
         return
@@ -119,16 +131,53 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         
         # 4. Combine and Merge Intervals to Remove
         all_remove_intervals = silence_intervals + filler_intervals
+        logging.info(f"Total intervals to remove: {len(silence_intervals)} silence + {len(filler_intervals)} filler words = {len(all_remove_intervals)}")
+        
         merged_remove_intervals = merge_intervals(all_remove_intervals)
+        logging.info(f"After merging overlapping intervals: {len(merged_remove_intervals)} removal segments")
+        
+        # Log each merged removal interval
+        if merged_remove_intervals:
+            logging.info("Timestamp ranges to be removed:")
+            total_removed_duration = 0
+            for i, (start, end) in enumerate(merged_remove_intervals, 1):
+                duration = end - start
+                total_removed_duration += duration
+                logging.info(f"  Segment {i}: {start:.2f}s - {end:.2f}s (duration: {duration:.2f}s)")
+            logging.info(f"Total duration to be removed: {total_removed_duration:.2f}s")
         
         # 5. Get Keep Intervals
         video = VideoFileClip(input_path)
         total_duration = video.duration
         keep_intervals = invert_intervals(merged_remove_intervals, total_duration)
         
+        logging.info(f"Original video duration: {total_duration:.2f}s")
+        if merged_remove_intervals:
+            final_duration = sum(end - start for start, end in keep_intervals)
+            logging.info(f"Final video duration: {final_duration:.2f}s (removed {total_duration - final_duration:.2f}s)")
+        
         if len(keep_intervals) == 1 and keep_intervals[0] == (0.0, total_duration):
             logging.info("No cuts needed.")
-            video.write_videofile(output_path, codec="libx264", audio_codec="aac")
+            # Choose encoding mode: CRF (quality-based) or constant bitrate
+            if use_crf:
+                # CRF mode: quality-based, variable bitrate
+                ffmpeg_params = [
+                    '-crf', str(crf),
+                    '-maxrate', bitrate,
+                    '-bufsize', f'{int(bitrate.rstrip("k")) * 2}k'
+                ]
+            else:
+                # Constant bitrate mode: predictable file size
+                ffmpeg_params = ['-b:v', bitrate]
+            
+            video.write_videofile(
+                output_path,
+                codec="libx264",
+                audio_codec="aac",
+                preset=preset,
+                audio_bitrate="192k",
+                ffmpeg_params=ffmpeg_params
+            )
             return
 
         logging.info(f"Cutting video. Keeping {len(keep_intervals)} segments.")
@@ -173,7 +222,26 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         final_video = concatenate_videoclips(final_clips, method="compose", padding=-crossfade_duration if crossfade_duration > 0 else 0)
         
         logging.info(f"Writing output to {output_path}")
-        final_video.write_videofile(output_path, codec="libx264", audio_codec="aac")
+        # Choose encoding mode: CRF (quality-based) or constant bitrate
+        if use_crf:
+            # CRF mode: quality-based, variable bitrate
+            ffmpeg_params = [
+                '-crf', str(crf),
+                '-maxrate', bitrate,
+                '-bufsize', f'{int(bitrate.rstrip("k")) * 2}k'
+            ]
+        else:
+            # Constant bitrate mode: predictable file size
+            ffmpeg_params = ['-b:v', bitrate]
+        
+        final_video.write_videofile(
+            output_path,
+            codec="libx264",
+            audio_codec="aac",
+            preset=preset,
+            audio_bitrate="192k",
+            ffmpeg_params=ffmpeg_params
+        )
         
         video.close()
         final_video.close()

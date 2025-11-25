@@ -191,7 +191,7 @@ def get_encoding_params(use_gpu: bool, use_crf: bool, bitrate: str, crf: int, pr
         return codec, preset, ffmpeg_params
 
 
-def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -40, crossfade_duration: float = 0.1, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False):
+def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False):
     if not os.path.exists(input_path):
         logging.error(f"Input file not found: {input_path}")
         return
@@ -292,6 +292,12 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
                 clip = clip.crossfadein(crossfade_duration)
             
             final_clips.append(clip)
+        
+        # Check if we have any clips to concatenate
+        if not final_clips:
+            logging.error("No video segments to keep - entire video was removed!")
+            logging.error("Try adjusting silence detection parameters or check if video has any content.")
+            raise ValueError("No video content remaining after removing silence and filler words")
             
         final_video = concatenate_videoclips(final_clips, method="compose", padding=-crossfade_duration if crossfade_duration > 0 else 0)
         

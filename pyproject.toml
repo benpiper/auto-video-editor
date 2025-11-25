@@ -9,6 +9,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "flask>=3.1.2",
     "moviepy<2.0",
     "numpy>=2.2.6",
     "openai-whisper>=20250625",

@@ -59,14 +59,14 @@ python main.py input.mp4 output.mp4
 # For screen recordings and lectures
 uv run python main.py my_video.mp4 edited_video.mp4 \
     --min-silence 1500 \
-    --silence-thresh -38 \
+    --silence-thresh -63 \
     --crossfade 0.2 \
     --bitrate 5000k
 
 # For podcasts and interviews
 uv run python main.py podcast.mp4 edited_podcast.mp4 \
     --min-silence 1000 \
-    --silence-thresh -35 \
+    --silence-thresh -63 \
     --bitrate 3000k
 
 # Quick processing (lower quality, faster)
@@ -84,7 +84,7 @@ uv run python main.py video.mp4 output.mp4 \
 - `--silence-thresh` - Silence threshold in dBFS (default: `-40`)
   - Higher values (e.g., `-30`) = more aggressive
   - Lower values (e.g., `-50`) = less aggressive
-  - Recommended: `-35` to `-40` for most videos
+  - Recommended: `-60` to `-70` for most videos
 
 #### Video Quality Parameters
 - `--bitrate` - Target video bitrate (default: `5000k`)
@@ -109,7 +109,7 @@ uv run python main.py video.mp4 output.mp4 \
 **High-quality screen recording:**
 ```bash
 uv run python main.py lecture.mp4 lecture-edited.mp4 \
-    --min-silence 1500 --silence-thresh -38 \
+    --min-silence 1500 --silence-thresh -63 \
     --bitrate 5000k --crossfade 0.2
 ```
 

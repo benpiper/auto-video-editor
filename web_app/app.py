@@ -58,8 +58,8 @@ def upload_video():
     # Get parameters
     params = {
         'min_silence': int(request.form.get('min_silence', 2000)),
-        'silence_thresh': int(request.form.get('silence_thresh', -40)),
-        'crossfade': float(request.form.get('crossfade', 0.1)),
+        'silence_thresh': int(request.form.get('silence_thresh', -63)),
+        'crossfade': float(request.form.get('crossfade', 0.2)),
         'bitrate': request.form.get('bitrate', '5000k'),
         'preset': request.form.get('preset', 'medium'),
         'use_crf': request.form.get('use_crf') == 'true',
@@ -101,7 +101,9 @@ def process_video_async(job_id, input_path, output_path, params):
             params['crf'],
             params['preset'],
             params['use_crf'],
-            False  # use_gpu_encoding
+            False,  # use_gpu_encoding
+            False,  # use_crisper_whisper
+            False   # no_crossfade
         )
         
         job.status = 'complete'

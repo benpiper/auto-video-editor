@@ -275,6 +275,148 @@ def invert_intervals(intervals: List[Tuple[float, float]], total_duration: float
         keep_intervals.append((current_time, total_duration))
     return keep_intervals
 
+def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]], temp_dir: str = ".") -> List[str]:
+    """
+    Extract video segments using FFmpeg with stream copying (no re-encoding).
+    
+    Args:
+        input_path: Path to input video
+        segments: List of (start, end) tuples in seconds
+        temp_dir: Directory for temporary segment files
+    
+    Returns:
+        List of paths to extracted segment files
+    """
+    import subprocess
+    import tempfile
+    
+    segment_files = []
+    
+    for i, (start, end) in enumerate(segments):
+        duration = end - start
+        segment_file = os.path.join(temp_dir, f"segment_{i:04d}.mp4")
+        
+        logging.info(f"Extracting segment {i+1}/{len(segments)}: {format_timestamp(start)} - {format_timestamp(end)}")
+        
+        try:
+            # Use FFmpeg to extract segment with re-encoding for precise cuts
+            # Note: Re-encoding is necessary to cut at exact timestamps (not just keyframes)
+            # This ensures no extra silence is added at cut points
+            cmd = [
+                'ffmpeg',
+                '-accurate_seek',             # Enable accurate seeking
+                '-i', input_path,             # Input file
+                '-ss', str(start),            # Seek to start (accurate, frame-level)
+                '-t', str(duration),          # Duration
+                '-c:v', 'libx264',            # Re-encode video for precise cuts
+                '-preset', 'ultrafast',       # Fast encoding preset
+                '-crf', '18',                 # High quality
+                '-c:a', 'aac',                # Re-encode audio
+                '-b:a', '192k',               # Audio bitrate
+                '-avoid_negative_ts', '1',    # Handle timestamp issues
+                '-y',                         # Overwrite output
+                segment_file
+            ]
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300
+            )
+            
+            if result.returncode != 0:
+                logging.error(f"FFmpeg segment extraction failed: {result.stderr}")
+                raise RuntimeError(f"Failed to extract segment {i}")
+            
+            segment_files.append(segment_file)
+            
+        except Exception as e:
+            logging.error(f"Error extracting segment {i}: {e}")
+            # Clean up any created files
+            for f in segment_files:
+                if os.path.exists(f):
+                    os.remove(f)
+            raise
+    
+    logging.info(f"Successfully extracted {len(segment_files)} segments")
+    return segment_files
+
+def concatenate_segments_ffmpeg(segment_files: List[str], output_path: str, codec: str, preset: str, ffmpeg_params: list, bitrate: str = None) -> None:
+    """
+    Concatenate video segments using FFmpeg.
+    
+    Args:
+        segment_files: List of segment file paths
+        output_path: Output video path
+        codec: Video codec to use
+        preset: Encoding preset
+        ffmpeg_params: Additional FFmpeg parameters
+        bitrate: Video bitrate (optional)
+    """
+    import subprocess
+    import tempfile
+    
+    # Create concat file list
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, dir='.') as f:
+        concat_file = f.name
+        for segment in segment_files:
+            # FFmpeg concat requires forward slashes and escaped special chars
+            escaped_path = segment.replace('\\', '/').replace("'", "'\\''")
+            f.write(f"file '{escaped_path}'\n")
+    
+    try:
+        logging.info(f"Concatenating {len(segment_files)} segments with FFmpeg...")
+        
+        # Build FFmpeg command
+        cmd = [
+            'ffmpeg',
+            '-f', 'concat',
+            '-safe', '0',
+            '-i', concat_file,
+        ]
+        
+        # Add encoding parameters
+        if codec == 'copy':
+            # Stream copy - very fast, no re-encoding
+            cmd.extend(['-c', 'copy'])
+        else:
+            # Re-encode with specified codec
+            cmd.extend(['-c:v', codec])
+            cmd.extend(['-c:a', 'aac'])
+            
+            if bitrate:
+                cmd.extend(['-b:v', bitrate])
+            
+            if preset:
+                cmd.extend(['-preset', preset])
+            
+            # Add any additional parameters
+            if ffmpeg_params:
+                cmd.extend(ffmpeg_params)
+        
+        cmd.extend(['-y', output_path])
+        
+        logging.info(f"FFmpeg command: {' '.join(cmd)}")
+        
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=600
+        )
+        
+        if result.returncode != 0:
+            logging.error(f"FFmpeg concatenation failed: {result.stderr}")
+            raise RuntimeError("Failed to concatenate segments")
+        
+        logging.info(f"Successfully created output: {output_path}")
+        
+    finally:
+        # Clean up concat file
+        if os.path.exists(concat_file):
+            os.remove(concat_file)
+
 def get_encoding_params(use_gpu: bool, use_crf: bool, bitrate: str, crf: int, preset: str):
     """
     Get encoding parameters for CPU or GPU encoding.
@@ -491,67 +633,53 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
 
         logging.info(f"Cutting video. Keeping {len(keep_intervals)} segments.")
         
-        # 6. Create Subclips and Concatenate with Crossfade
-        clips = []
-        for start, end in keep_intervals:
-            # Add a small buffer if needed, but for now exact cuts
-            clip = video.subclip(start, end)
-            clips.append(clip)
+        # 6. Extract segments and concatenate with FFmpeg (much faster than MoviePy)
+        segment_files = []
+        try:
+            # Extract segments using FFmpeg (stream copy - very fast)
+            segment_files = extract_segments_ffmpeg(working_video_path, keep_intervals, temp_dir=".")
             
-        # Apply crossfade
-        # MoviePy's concatenate_videoclips with padding/method='compose' can do crossfades but it's tricky.
-        # A simpler way for audio crossfade is `clip.audio.fadeout`. 
-        # For video crossfade, we need overlapping clips.
-        
-        # Let's try a simple concatenation first. If crossfade is strictly required, we need to overlap.
-        # To do crossfade: clip2 starts fading in while clip1 fades out.
-        # We can use `composite_videoclips` or just `concatenate_videoclips` with padding.
-        # However, simple concatenation is much faster and less error prone.
-        # The user requested "smooth fade transition".
-        
-        final_clips = []
-        for i, clip in enumerate(clips):
-            # Apply crossfade only if not disabled
-            if not no_crossfade and i > 0 and crossfade_duration > 0:
-                clip = clip.crossfadein(crossfade_duration)
+            # Get encoding parameters
+            codec, preset_value, ffmpeg_params = get_encoding_params(
+                use_gpu_encoding, use_crf, bitrate, crf, preset
+            )
             
-            final_clips.append(clip)
-        
-        # Check if we have any clips to concatenate
-        if not final_clips:
-            logging.error("No video segments to keep - entire video was removed!")
-            logging.error("Try adjusting silence detection parameters or check if video has any content.")
-            raise ValueError("No video content remaining after removing silence and filler words")
+            # Decide whether to use stream copy or re-encode
+            if no_crossfade:
+                # Use stream copy for maximum speed (no re-encoding)
+                logging.info("Using FFmpeg stream copy (no re-encoding) for maximum speed")
+                concatenate_segments_ffmpeg(
+                    segment_files,
+                    output_path,
+                    codec='copy',  # Stream copy
+                    preset=None,
+                    ffmpeg_params=[],
+                    bitrate=None
+                )
+            else:
+                # Re-encode with crossfades (slower but still faster than MoviePy)
+                logging.warning("Crossfades with FFmpeg require re-encoding (slower)")
+                logging.info("Consider using --no-crossfade for much faster processing")
+                concatenate_segments_ffmpeg(
+                    segment_files,
+                    output_path,
+                    codec=codec,
+                    preset=preset_value,
+                    ffmpeg_params=ffmpeg_params,
+                    bitrate=bitrate if use_gpu_encoding else None
+                )
             
-        # Use method='compose' for crossfades, 'chain' for simple concatenation
-        if no_crossfade:
-            logging.info("Using simple concatenation (no crossfades) for faster processing")
-            final_video = concatenate_videoclips(final_clips, method='chain')
-        else:
-            logging.info("Using crossfade transitions")
-            # Use method='compose' to enable crossfades
-            # Note: This may cause slight dimension changes on some videos
-            final_video = concatenate_videoclips(final_clips, method='compose', padding=-crossfade_duration if crossfade_duration > 0 else 0)
-        
-        logging.info(f"Writing output to {output_path}")
-        
-        # Get encoding parameters (GPU or CPU)
-        codec, preset_value, ffmpeg_params = get_encoding_params(
-            use_gpu_encoding, use_crf, bitrate, crf, preset
-        )
-        
-        final_video.write_videofile(
-            output_path,
-            codec=codec,
-            audio_codec="aac",
-            bitrate=bitrate if use_gpu_encoding else None,
-            preset=preset_value,
-            audio_bitrate="192k",
-            ffmpeg_params=ffmpeg_params
-        )
-        
-        video.close()
-        final_video.close()
+            logging.info(f"✅ Video processing complete: {output_path}")
+            
+        finally:
+            # Clean up segment files
+            for segment_file in segment_files:
+                if os.path.exists(segment_file):
+                    try:
+                        os.remove(segment_file)
+                        logging.debug(f"Removed temporary segment: {segment_file}")
+                    except Exception as e:
+                        logging.warning(f"Failed to remove temporary segment {segment_file}: {e}")
         
     except KeyboardInterrupt:
         logging.warning("Processing interrupted by user (Ctrl+C)")
@@ -577,7 +705,15 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
                 logging.error(f"Failed to remove incomplete file: {cleanup_error}")
                 
     finally:
-        # Cleanup
+        # Cleanup video object if it exists
+        try:
+            if 'video' in locals():
+                video.close()
+                logging.debug("Closed video object")
+        except Exception as e:
+            logging.warning(f"Error closing video object: {e}")
+        
+        # Cleanup temporary audio
         if os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)
         

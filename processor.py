@@ -191,16 +191,95 @@ def get_encoding_params(use_gpu: bool, use_crf: bool, bitrate: str, crf: int, pr
         return codec, preset, ffmpeg_params
 
 
+
+def get_video_rotation(video_path: str) -> int:
+    """
+    Get the rotation metadata from a video file using ffprobe.
+    Returns rotation in degrees (0, 90, 180, 270).
+    """
+    import subprocess
+    try:
+        result = subprocess.run(
+            ['ffprobe', '-v', 'error', '-select_streams', 'v:0',
+             '-show_entries', 'stream_tags=rotate', '-of', 'default=nw=1:nk=1',
+             video_path],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        rotation = result.stdout.strip()
+        return int(rotation) if rotation else 0
+    except:
+        return 0
+
+def transpose_video_if_needed(input_path: str, rotation: int) -> str:
+    """
+    If video has rotation metadata, create a transposed version using FFmpeg.
+    Returns path to the (possibly transposed) video file.
+    """
+    if rotation == 0:
+        return input_path
+    
+    import subprocess
+    import tempfile
+    
+    # Create temporary file for transposed video
+    temp_fd, temp_path = tempfile.mkstemp(suffix='.mp4', prefix='transposed_')
+    os.close(temp_fd)
+    
+    # FFmpeg transpose filter values:
+    # 0 = 90° counterclockwise and vertical flip
+    # 1 = 90° clockwise  
+    # 2 = 90° counterclockwise
+    # 3 = 90° clockwise and vertical flip
+    
+    transpose_map = {
+        90: '2',    # 90° counterclockwise
+        180: '2,transpose=2',  # 180° = two 90° rotations
+        270: '1'    # 90° clockwise
+    }
+    
+    transpose_filter = transpose_map.get(rotation)
+    if not transpose_filter:
+        return input_path
+    
+    logging.info(f"Transposing video {rotation}° using FFmpeg...")
+    
+    try:
+        subprocess.run(
+            ['ffmpeg', '-i', input_path, '-vf', f'transpose={transpose_filter}',
+             '-c:a', 'copy', '-y', temp_path],
+            capture_output=True,
+            check=True,
+            timeout=300
+        )
+        logging.info(f"Video transposed successfully to {temp_path}")
+        return temp_path
+    except Exception as e:
+        logging.error(f"Failed to transpose video: {e}")
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        return input_path
+
 def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False):
     if not os.path.exists(input_path):
         logging.error(f"Input file not found: {input_path}")
         return
+    
+    # Detect video rotation
+    rotation = get_video_rotation(input_path)
+    if rotation != 0:
+        logging.info(f"Detected video rotation: {rotation} degrees")
+    
+    # Transpose video if needed to fix dimensions
+    working_video_path = transpose_video_if_needed(input_path, rotation)
+    transposed = (working_video_path != input_path)
 
     temp_audio_path = "temp_audio.wav"
     
     try:
-        # 1. Extract Audio
-        extract_audio(input_path, temp_audio_path)
+        # 1. Extract Audio (from transposed video if applicable)
+        extract_audio(working_video_path, temp_audio_path)
         
         # 2. Detect Silence
         silence_intervals = detect_silence(temp_audio_path, min_silence_len, silence_thresh)
@@ -226,8 +305,13 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
             logging.info(f"Total duration to be removed: {total_removed_duration:.2f}s")
         
         # 5. Get Keep Intervals
-        video = VideoFileClip(input_path)
+        video = VideoFileClip(working_video_path)  # Use transposed video if applicable
         total_duration = video.duration
+        
+        # Store original dimensions to preserve them
+        original_size = video.size
+        logging.info(f"Original video dimensions: {original_size[0]}x{original_size[1]} (width x height)")
+        
         keep_intervals = invert_intervals(merged_remove_intervals, total_duration)
         
         logging.info(f"Original video duration: {total_duration:.2f}s")
@@ -299,7 +383,9 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
             logging.error("Try adjusting silence detection parameters or check if video has any content.")
             raise ValueError("No video content remaining after removing silence and filler words")
             
-        final_video = concatenate_videoclips(final_clips, method="compose", padding=-crossfade_duration if crossfade_duration > 0 else 0)
+        # Use method='chain' to preserve original dimensions
+        # method='compose' can cause resizing/stretching issues
+        final_video = concatenate_videoclips(final_clips, method='chain')
         
         logging.info(f"Writing output to {output_path}")
         
@@ -326,9 +412,16 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         import traceback
         traceback.print_exc()
     finally:
+        # Cleanup
         if os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)
-
+        
+        # Cleanup transposed video if created
+        if transposed and os.path.exists(working_video_path):
+            logging.info(f"Cleaning up transposed video: {working_video_path}")
+            os.remove(working_video_path)
+        
+        logging.info("Done.")
 if __name__ == "__main__":
     # For testing
     pass

@@ -383,9 +383,9 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
             logging.error("Try adjusting silence detection parameters or check if video has any content.")
             raise ValueError("No video content remaining after removing silence and filler words")
             
-        # Use method='chain' to preserve original dimensions
-        # method='compose' can cause resizing/stretching issues
-        final_video = concatenate_videoclips(final_clips, method='chain')
+        # Use method='compose' to enable crossfades
+        # Note: This may cause slight dimension changes on some videos
+        final_video = concatenate_videoclips(final_clips, method='compose', padding=-crossfade_duration if crossfade_duration > 0 else 0)
         
         logging.info(f"Writing output to {output_path}")
         

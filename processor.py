@@ -9,6 +9,14 @@ from pydub import AudioSegment, silence
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+def format_timestamp(seconds: float) -> str:
+    """Convert seconds to HH:MM:SS format."""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = seconds % 60
+    return f"{hours:02d}:{minutes:02d}:{secs:05.2f}"
+
+
 def extract_audio(video_path: str, audio_path: str):
     """Extracts audio from video file."""
     logging.info(f"Extracting audio from {video_path} to {audio_path}")
@@ -39,41 +47,197 @@ def detect_silence(audio_path: str, min_silence_len: int = 2000, silence_thresh:
         logging.info(f"Found {len(silence_intervals_sec)} silence intervals:")
         for i, (start, end) in enumerate(silence_intervals_sec, 1):
             duration = end - start
-            logging.info(f"  Silence {i}: {start:.2f}s - {end:.2f}s (duration: {duration:.2f}s)")
+            logging.info(f"  Silence {i}: {format_timestamp(start)} - {format_timestamp(end)} (duration: {duration:.2f}s)")
     else:
         logging.info("No silence intervals found.")
     
     return silence_intervals_sec
 
-def detect_filler_words(audio_path: str, model_size: str = "base") -> List[Tuple[float, float]]:
+def detect_filler_words(audio_path: str, model_size: str = "base", use_crisper: bool = False) -> List[Tuple[float, float]]:
     """
-    Detects filler words using Whisper.
+    Detects filler words using Whisper or CrisperWhisper.
+    Returns:
+        List of (start, end) tuples in seconds.
+    """
+    if use_crisper:
+        return detect_filler_words_crisper(audio_path)
+    else:
+        return detect_filler_words_whisper(audio_path, model_size)
+
+def detect_filler_words_whisper(audio_path: str, model_size: str = "base") -> List[Tuple[float, float]]:
+    """
+    Detects filler words using standard Whisper.
     Returns:
         List of (start, end) tuples in seconds.
     """
     logging.info(f"Loading Whisper model ({model_size})...")
     model = whisper.load_model(model_size)
-    
     logging.info("Transcribing audio for filler word detection...")
     # We use a prompt to encourage transcribing filler words if possible, though Whisper is trained to remove them.
     # Sometimes standard transcription removes them. We can try to rely on word-level timestamps.
-    result = model.transcribe(audio_path, word_timestamps=True, initial_prompt="Um, uh, like, you know.")
+    # temperature=0.0 for most literal/deterministic transcription
+    # language='en' to force English detection
+    result = model.transcribe(
+        audio_path, 
+        word_timestamps=True, 
+        initial_prompt="um, uh, umm, uhh, er",
+        temperature=0.0,
+        language='en'
+    )
     
-    filler_words = ["um", "uh", "umm", "uhh", "er", "ah"]
+    filler_words = ["um", "uh", "umm", "uhh", "er", "just, you know", "like, you know"]
     filler_intervals = []
+    
+    # Count total words for progress tracking
+    total_words = sum(len(segment.get("words", [])) for segment in result["segments"])
+    logging.info(f"Processing {total_words} transcribed words...")
 
+    word_count = 0
     for segment in result["segments"]:
-        for word in segment["words"]:
-            text = word["word"].strip().lower().replace(",", "").replace(".", "")
+        for word in segment.get("words", []):
+            word_count += 1
+            word_text = word["word"].strip()
+            word_start = word["start"]
+            
+            # Log every word with progress
+            #logging.info(f"  Word {word_count}/{total_words}: [{word_start:.1f}s] \"{word_text}\"")
+            
+            # Check for filler words
+            text = word_text.lower().replace(",", "").replace(".", "")
             if text in filler_words:
                 start_time = word["start"]
                 end_time = word["end"]
                 duration = end_time - start_time
                 filler_intervals.append((start_time, end_time))
-                logging.info(f"  Filler word detected: '{text}' at {start_time:.2f}s - {end_time:.2f}s (duration: {duration:.2f}s)")
+                logging.info(f"    ✓ Filler word detected: '{text}' at {format_timestamp(start_time)} - {format_timestamp(end_time)} (duration: {duration:.2f}s)")
     
     logging.info(f"Found {len(filler_intervals)} filler words total.")
+    
+    # Save transcript to file
+    transcript_text = result.get("text", "")
+    if transcript_text:
+        transcript_path = audio_path.replace(".wav", "_transcript.txt")
+        with open(transcript_path, "w", encoding="utf-8") as f:
+            f.write(transcript_text)
+        logging.info(f"Transcript saved to: {transcript_path}")
+    
     return filler_intervals
+
+def detect_filler_words_crisper(audio_path: str) -> List[Tuple[float, float]]:
+    """
+    Detects filler words using OpenAI Whisper Tiny model via HuggingFace.
+    Falls back to standard Whisper if this fails.
+    Returns:
+        List of (start, end) tuples in seconds.
+    """
+    try:
+        import torch
+        from transformers import pipeline
+        import soundfile as sf
+        import numpy as np
+        
+        logging.info("Loading Whisper Tiny model...")
+        
+        # Use GPU if available
+        device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+        model_id = "openai/whisper-tiny"
+        
+        # Create pipeline - it will load the model automatically
+        pipe = pipeline(
+            "automatic-speech-recognition",
+            model=model_id,
+            chunk_length_s=30,
+            batch_size=8,
+            return_timestamps='word',
+            dtype=torch_dtype,
+            device=device,
+            language='en',
+        )
+        
+        logging.info(f"Transcribing audio with Whisper Tiny (device: {device})...")
+        
+        # Load audio and ensure it's in the right format
+        audio_data, sample_rate = sf.read(audio_path)
+        
+        # Convert stereo to mono if needed
+        if len(audio_data.shape) > 1:
+            audio_data = np.mean(audio_data, axis=1)
+        
+        # Ensure float32 format
+        audio_data = audio_data.astype(np.float32)
+        
+        # Transcribe - pipeline will handle resampling to 16kHz automatically
+        result = pipe(
+            {"array": audio_data, "sampling_rate": sample_rate},
+            generate_kwargs={"language": "en", "task": "transcribe"}
+        )
+        
+        # Calculate actual audio duration
+        audio_duration = len(audio_data) / sample_rate
+        logging.info(f"Audio duration: {format_timestamp(audio_duration)}")
+        
+        # Extract filler words
+        filler_words = ["um", "uh", "umm", "uhh", "er"]
+        filler_intervals = []
+        
+        if "chunks" in result:
+            logging.info(f"Processing {len(result['chunks'])} transcribed chunks...")
+            for i, chunk in enumerate(result["chunks"], 1):
+                # Log transcription progress
+                chunk_text = chunk["text"].strip()
+                chunk_start = chunk["timestamp"][0] if chunk["timestamp"][0] is not None else 0
+                #logging.info(f"  Chunk {i}: [{chunk_start:.1f}s] \"{chunk_text}\"")
+                
+                # Check for filler words
+                text = chunk_text.lower().replace(",", "").replace(".", "")
+                if text in filler_words:
+                    start_time = chunk["timestamp"][0]
+                    end_time = chunk["timestamp"][1] if chunk["timestamp"][1] is not None else start_time + 0.5
+                    
+                    # Validate timestamps - skip if beyond audio duration
+                    if start_time >= audio_duration:
+                        logging.warning(f"    ⚠ Skipping invalid filler word '{text}' at {format_timestamp(start_time)} (beyond audio duration {format_timestamp(audio_duration)})")
+                        continue
+                    
+                    # Clamp end_time to audio duration
+                    if end_time > audio_duration:
+                        logging.warning(f"    ⚠ Clamping filler word '{text}' end time from {format_timestamp(end_time)} to {format_timestamp(audio_duration)}")
+                        end_time = audio_duration
+                    
+                    duration = end_time - start_time
+                    filler_intervals.append((start_time, end_time))
+                    logging.info(f"    ✓ Filler word detected: '{text}' at {format_timestamp(start_time)} - {format_timestamp(end_time)} (duration: {duration:.2f}s)")
+        
+        # Clean up GPU memory
+        if device == "cuda:0":
+            del pipe
+            torch.cuda.empty_cache()
+        
+        logging.info(f"Found {len(filler_intervals)} filler words total (Whisper Tiny).")
+        
+        # Save transcript to file
+        transcript_text = result.get("text", "")
+        if transcript_text:
+            transcript_path = audio_path.replace(".wav", "_transcript_tiny.txt")
+            with open(transcript_path, "w", encoding="utf-8") as f:
+                f.write(transcript_text)
+            logging.info(f"Transcript saved to: {transcript_path}")
+        
+        return filler_intervals
+        
+    except ImportError as e:
+        logging.error(f"Whisper Tiny requires transformers and datasets libraries: {e}")
+        logging.error("Install with: pip install transformers datasets soundfile torchaudio librosa")
+        logging.warning("Falling back to standard Whisper...")
+        return detect_filler_words_whisper(audio_path, "base")
+    except Exception as e:
+        logging.error(f"Error using Whisper Tiny: {e}")
+        logging.warning("Falling back to standard Whisper...")
+        return detect_filler_words_whisper(audio_path, "base")
+
+
+
 
 def merge_intervals(intervals: List[Tuple[float, float]], min_gap: float = 0.1) -> List[Tuple[float, float]]:
     """Merges overlapping or close intervals."""
@@ -261,7 +425,7 @@ def transpose_video_if_needed(input_path: str, rotation: int) -> str:
             os.remove(temp_path)
         return input_path
 
-def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False):
+def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False, use_crisper_whisper: bool = False, no_crossfade: bool = False):
     if not os.path.exists(input_path):
         logging.error(f"Input file not found: {input_path}")
         return
@@ -285,7 +449,7 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         silence_intervals = detect_silence(temp_audio_path, min_silence_len, silence_thresh)
         
         # 3. Detect Filler Words
-        filler_intervals = detect_filler_words(temp_audio_path)
+        filler_intervals = detect_filler_words(temp_audio_path, use_crisper=use_crisper_whisper)
         
         # 4. Combine and Merge Intervals to Remove
         all_remove_intervals = silence_intervals + filler_intervals
@@ -301,8 +465,8 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
             for i, (start, end) in enumerate(merged_remove_intervals, 1):
                 duration = end - start
                 total_removed_duration += duration
-                logging.info(f"  Segment {i}: {start:.2f}s - {end:.2f}s (duration: {duration:.2f}s)")
-            logging.info(f"Total duration to be removed: {total_removed_duration:.2f}s")
+                logging.info(f"  Segment {i}: {format_timestamp(start)} - {format_timestamp(end)} (duration: {duration:.2f}s)")
+            logging.info(f"Total duration to be removed: {format_timestamp(total_removed_duration)}")
         
         # 5. Get Keep Intervals
         video = VideoFileClip(working_video_path)  # Use transposed video if applicable
@@ -314,28 +478,15 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         
         keep_intervals = invert_intervals(merged_remove_intervals, total_duration)
         
-        logging.info(f"Original video duration: {total_duration:.2f}s")
+        logging.info(f"Original video duration: {format_timestamp(total_duration)}")
         if merged_remove_intervals:
             final_duration = sum(end - start for start, end in keep_intervals)
-            logging.info(f"Final video duration: {final_duration:.2f}s (removed {total_duration - final_duration:.2f}s)")
+            logging.info(f"Final video duration: {format_timestamp(final_duration)} (removed {format_timestamp(total_duration - final_duration)})")
         
         if len(keep_intervals) == 1 and keep_intervals[0] == (0.0, total_duration):
-            logging.info("No cuts needed.")
-            
-            # Get encoding parameters (GPU or CPU)
-            codec, preset_value, ffmpeg_params = get_encoding_params(
-                use_gpu_encoding, use_crf, bitrate, crf, preset
-            )
-            
-            video.write_videofile(
-                output_path,
-                codec=codec,
-                audio_codec="aac",
-                bitrate=bitrate if use_gpu_encoding else None,
-                preset=preset_value,
-                audio_bitrate="192k",
-                ffmpeg_params=ffmpeg_params
-            )
+            logging.info("✅ No cuts needed - no silence or filler words detected!")
+            logging.info("The video is already optimized. Exiting without re-encoding.")
+            video.close()
             return
 
         logging.info(f"Cutting video. Keeping {len(keep_intervals)} segments.")
@@ -360,19 +511,8 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         
         final_clips = []
         for i, clip in enumerate(clips):
-            # We can add a fade in/out to each clip to smooth the audio/video
-            # But that creates a dip to black/silence.
-            # A true crossfade requires overlap.
-            
-            # Let's implement a simple crossfade by overlapping.
-            # We need to extend the clips slightly if possible, but we can't extend beyond the cut points (that's the bad part).
-            # So we can only crossfade if we accept that we are blending the very edges of the "good" parts.
-            
-            # Actually, standard "jump cut" removal usually just does hard cuts. 
-            # If "smooth fade transition" means cross dissolve, we need to overlap.
-            # Let's use `crossfadein` on clips[1:]
-            
-            if i > 0 and crossfade_duration > 0:
+            # Apply crossfade only if not disabled
+            if not no_crossfade and i > 0 and crossfade_duration > 0:
                 clip = clip.crossfadein(crossfade_duration)
             
             final_clips.append(clip)
@@ -383,9 +523,15 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
             logging.error("Try adjusting silence detection parameters or check if video has any content.")
             raise ValueError("No video content remaining after removing silence and filler words")
             
-        # Use method='compose' to enable crossfades
-        # Note: This may cause slight dimension changes on some videos
-        final_video = concatenate_videoclips(final_clips, method='compose', padding=-crossfade_duration if crossfade_duration > 0 else 0)
+        # Use method='compose' for crossfades, 'chain' for simple concatenation
+        if no_crossfade:
+            logging.info("Using simple concatenation (no crossfades) for faster processing")
+            final_video = concatenate_videoclips(final_clips, method='chain')
+        else:
+            logging.info("Using crossfade transitions")
+            # Use method='compose' to enable crossfades
+            # Note: This may cause slight dimension changes on some videos
+            final_video = concatenate_videoclips(final_clips, method='compose', padding=-crossfade_duration if crossfade_duration > 0 else 0)
         
         logging.info(f"Writing output to {output_path}")
         
@@ -407,10 +553,29 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         video.close()
         final_video.close()
         
+    except KeyboardInterrupt:
+        logging.warning("Processing interrupted by user (Ctrl+C)")
+        # Clean up incomplete output file
+        if os.path.exists(output_path):
+            logging.info(f"Removing incomplete output file: {output_path}")
+            try:
+                os.remove(output_path)
+            except Exception as cleanup_error:
+                logging.error(f"Failed to remove incomplete file: {cleanup_error}")
+        raise  # Re-raise to exit gracefully
+        
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         import traceback
         traceback.print_exc()
+        # Clean up incomplete output file
+        if os.path.exists(output_path):
+            logging.info(f"Removing incomplete output file: {output_path}")
+            try:
+                os.remove(output_path)
+            except Exception as cleanup_error:
+                logging.error(f"Failed to remove incomplete file: {cleanup_error}")
+                
     finally:
         # Cleanup
         if os.path.exists(temp_audio_path):

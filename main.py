@@ -18,14 +18,14 @@ def main():
     parser.add_argument(
         "--silence-thresh",
         type=int,
-        default=-40,
-        help="Silence threshold in dBFS (default: -40).",
+        default=-63,
+        help="Silence threshold in dBFS (default: -63).",
     )
     parser.add_argument(
         "--crossfade",
         type=float,
-        default=0.1,
-        help="Crossfade duration in seconds (default: 0.1).",
+        default=0.2,
+        help="Crossfade duration in seconds (default: 0.2).",
     )
     parser.add_argument(
         "--bitrate",
@@ -54,7 +54,17 @@ def main():
     parser.add_argument(
         "--use-gpu-encoding",
         action="store_true",
-        help="Use NVIDIA GPU (NVENC) for faster video encoding. Requires NVIDIA GPU.",
+        help="Use NVIDIA GPU (NVENC) for video encoding (requires FFmpeg with NVENC support).",
+    )
+    parser.add_argument(
+        "--use-crisper-whisper",
+        action="store_true",
+        help="Use CrisperWhisper for better filler word detection (requires transformers library and HuggingFace login).",
+    )
+    parser.add_argument(
+        "--no-crossfade",
+        action="store_true",
+        help="Disable crossfades for faster processing (uses simple concatenation instead).",
     )
 
     args = parser.parse_args()
@@ -71,6 +81,8 @@ def main():
         args.preset,
         args.use_crf,
         args.use_gpu_encoding,
+        args.use_crisper_whisper,
+        args.no_crossfade,
     )
     logging.info("Done.")
 

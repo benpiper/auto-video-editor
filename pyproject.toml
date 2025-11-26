@@ -9,10 +9,15 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "datasets>=4.4.1",
     "flask>=3.1.2",
+    "librosa>=0.11.0",
     "moviepy<2.0",
     "numpy>=2.2.6",
     "openai-whisper>=20250625",
     "pydub>=0.25.1",
+    "soundfile>=0.13.1",
     "torch>=2.9.1",
+    "torchaudio>=2.9.1",
+    "transformers>=4.57.3",
 ]

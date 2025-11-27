@@ -1,14 +1,13 @@
 # Video Quality Settings Guide
 
 ## Problem
-The original implementation was producing low-quality output videos with significantly reduced bitrate:
-- **Original video**: 760 kbps
-- **Processed video**: 147 kbps (81% reduction!)
-
-This was because MoviePy's `write_videofile()` was using default settings without quality parameters.
+The original implementation using MoviePy was producing low-quality output videos with significantly reduced bitrate and was very slow.
 
 ## Solution
-Added configurable quality parameters to maintain high video quality:
+Switched to direct **FFmpeg encoding** for both speed and quality:
+- **Speed**: Uses FFmpeg stream copying where possible and fast encoding presets
+- **Quality**: Configurable bitrate, CRF, and presets
+- **Precision**: Frame-accurate cuts using FFmpeg
 
 ### New Command-Line Arguments
 

@@ -58,6 +58,11 @@ The video processor now includes detailed logging that shows:
 - Includes precise timestamps for each occurrence
 - Helps verify that filler words are being correctly identified
 
+### Freeze Frame Detection
+- Shows intervals where the screen was static
+- Includes start/end times and duration
+- Helps identify long pauses in screen recordings
+
 ### Merged Removal Segments
 - Shows the final list of timestamp ranges to be removed
 - Accounts for overlapping intervals (e.g., filler word during silence)

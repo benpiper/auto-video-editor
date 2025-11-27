@@ -68,7 +68,9 @@ def upload_video():
         'preset': request.form.get('preset', 'medium'),
         'use_crf': request.form.get('use_crf') == 'true',
         'crf': int(request.form.get('crf', 18)),
-        'filler_words': [w.strip() for w in request.form.get('filler_words', '').split(';') if w.strip()]
+        'filler_words': [w.strip() for w in request.form.get('filler_words', '').split(';') if w.strip()],
+        'remove_freeze': request.form.get('remove_freeze') == 'true',
+        'freeze_duration': float(request.form.get('freeze_duration', 5))
     }
     
     # Create job
@@ -112,7 +114,9 @@ def process_video_async(job_id, input_path, output_path, params):
             False,  # use_crf
             False,  # use_gpu_encoding
             True,   # no_crossfade (FORCE TRUE as requested)
-            params['filler_words']  # custom filler words
+            params['filler_words'],  # custom filler words
+            params['freeze_duration'] if params['remove_freeze'] else None,  # freeze_duration
+            0.001   # freeze_noise (default)
         )
         
         job.status = 'complete'

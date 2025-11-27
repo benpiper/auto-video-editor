@@ -67,6 +67,18 @@ def main():
         default="um;uh;umm;uhh;er;just;you know;like;you know",
         help="Semicolon-separated list of filler words to remove (default: um;uh;umm;uhh;er;just;you know;like;you know).",
     )
+    parser.add_argument(
+        "--freeze-duration",
+        type=float,
+        default=None,
+        help="Remove still moments longer than this duration in seconds (e.g., 5). Disabled by default.",
+    )
+    parser.add_argument(
+        "--freeze-noise",
+        type=float,
+        default=0.001,
+        help="Noise tolerance for freeze detection (0.001=sensitive, 0.01=less sensitive).",
+    )
 
     args = parser.parse_args()
 
@@ -87,6 +99,8 @@ def main():
         args.use_gpu_encoding,
         args.no_crossfade,
         filler_words_list,
+        args.freeze_duration,
+        args.freeze_noise,
     )
     logging.info("Done.")
 

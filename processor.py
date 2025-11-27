@@ -18,11 +18,18 @@ def format_timestamp(seconds: float) -> str:
 
 
 def extract_audio(video_path: str, audio_path: str):
-    """Extracts audio from video file."""
+    """Extracts audio from video file. Returns True if audio exists, False otherwise."""
     logging.info(f"Extracting audio from {video_path} to {audio_path}")
     video = VideoFileClip(video_path)
+    
+    if video.audio is None:
+        logging.warning("Video has no audio track - skipping audio-based detection")
+        video.close()
+        return False
+    
     video.audio.write_audiofile(audio_path, verbose=False, logger=None)
     video.close()
+    return True
 
 def detect_silence(audio_path: str, min_silence_len: int = 2000, silence_thresh: int = -40) -> List[Tuple[float, float]]:
     """
@@ -124,6 +131,77 @@ def detect_filler_words_whisper(audio_path: str, model_size: str = "base", fille
         logging.info(f"Transcript saved to: {transcript_path}")
     
     return filler_intervals
+
+def detect_freeze_frames(video_path: str, min_duration: float = 5.0, noise_tolerance: float = 0.001) -> List[Tuple[float, float]]:
+    """
+    Detects freeze/still frames using FFmpeg's freezedetect filter.
+    
+    Args:
+        video_path: Path to video file
+        min_duration: Minimum freeze duration in seconds to detect
+        noise_tolerance: Noise tolerance (0.001 = very sensitive, 0.01 = less sensitive)
+    
+    Returns:
+        List of (start, end) tuples in seconds for frozen intervals
+    """
+    import subprocess
+    import re
+    
+    logging.info(f"Detecting freeze frames (min duration: {min_duration}s, noise tolerance: {noise_tolerance})...")
+    
+    try:
+        # Run FFmpeg with freezedetect filter
+        cmd = [
+            'ffmpeg',
+            '-i', video_path,
+            '-vf', f'freezedetect=n={noise_tolerance}:d={min_duration}',
+            '-f', 'null',
+            '-'
+        ]
+        
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=300
+        )
+        
+        # Parse freeze detection from stderr
+        freeze_intervals = []
+        freeze_start = None
+        
+        for line in result.stderr.split('\n'):
+            # Look for freeze_start and freeze_end lines
+            if 'freezedetect' in line:
+                if 'freeze_start' in line:
+                    # Extract timestamp: lavfi.freezedetect.freeze_start: 12.5
+                    match = re.search(r'freeze_start:\s*([\d.]+)', line)
+                    if match:
+                        freeze_start = float(match.group(1))
+                elif 'freeze_end' in line and freeze_start is not None:
+                    # Extract timestamp: lavfi.freezedetect.freeze_end: 18.2
+                    match = re.search(r'freeze_end:\s*([\d.]+)', line)
+                    if match:
+                        freeze_end = float(match.group(1))
+                        freeze_intervals.append((freeze_start, freeze_end))
+                        freeze_start = None
+        
+        if freeze_intervals:
+            logging.info(f"Found {len(freeze_intervals)} freeze frame intervals:")
+            for i, (start, end) in enumerate(freeze_intervals, 1):
+                duration = end - start
+                logging.info(f"  Freeze {i}: {format_timestamp(start)} - {format_timestamp(end)} (duration: {duration:.2f}s)")
+        else:
+            logging.info("No freeze frames detected.")
+        
+        return freeze_intervals
+        
+    except subprocess.TimeoutExpired:
+        logging.error("Freeze detection timed out")
+        return []
+    except Exception as e:
+        logging.error(f"Error detecting freeze frames: {e}")
+        return []
 
 
 
@@ -459,7 +537,7 @@ def transpose_video_if_needed(input_path: str, rotation: int) -> str:
             os.remove(temp_path)
         return input_path
 
-def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False, no_crossfade: bool = False, filler_words: List[str] = None):
+def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False, no_crossfade: bool = False, filler_words: List[str] = None, freeze_duration: float = None, freeze_noise: float = 0.001):
     if not os.path.exists(input_path):
         logging.error(f"Input file not found: {input_path}")
         return
@@ -477,17 +555,30 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
     
     try:
         # 1. Extract Audio (from transposed video if applicable)
-        extract_audio(working_video_path, temp_audio_path)
+        has_audio = extract_audio(working_video_path, temp_audio_path)
         
-        # 2. Detect Silence
-        silence_intervals = detect_silence(temp_audio_path, min_silence_len, silence_thresh)
+        # 2. Detect Silence (only if audio exists)
+        silence_intervals = []
+        if has_audio:
+            silence_intervals = detect_silence(temp_audio_path, min_silence_len, silence_thresh)
+        else:
+            logging.info("Skipping silence detection (no audio)")
         
-        # 3. Detect Filler Words
-        filler_intervals = detect_filler_words(temp_audio_path, filler_words_list=filler_words)
+        # 3. Detect Filler Words (only if audio exists)
+        filler_intervals = []
+        if has_audio:
+            filler_intervals = detect_filler_words(temp_audio_path, filler_words_list=filler_words)
+        else:
+            logging.info("Skipping filler word detection (no audio)")
         
-        # 4. Combine and Merge Intervals to Remove
-        all_remove_intervals = silence_intervals + filler_intervals
-        logging.info(f"Total intervals to remove: {len(silence_intervals)} silence + {len(filler_intervals)} filler words = {len(all_remove_intervals)}")
+        # 4. Detect Freeze Frames (if enabled)
+        freeze_intervals = []
+        if freeze_duration is not None and freeze_duration > 0:
+            freeze_intervals = detect_freeze_frames(working_video_path, min_duration=freeze_duration, noise_tolerance=freeze_noise)
+        
+        # 5. Combine and Merge Intervals to Remove
+        all_remove_intervals = silence_intervals + filler_intervals + freeze_intervals
+        logging.info(f"Total intervals to remove: {len(silence_intervals)} silence + {len(filler_intervals)} filler words + {len(freeze_intervals)} freeze frames = {len(all_remove_intervals)}")
         
         merged_remove_intervals = merge_intervals(all_remove_intervals)
         logging.info(f"After merging overlapping intervals: {len(merged_remove_intervals)} removal segments")

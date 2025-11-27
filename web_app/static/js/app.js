@@ -68,6 +68,8 @@ processBtn.addEventListener('click', async () => {
     formData.append('min_silence', document.getElementById('min-silence').value);
     formData.append('silence_thresh', document.getElementById('silence-thresh').value);
     formData.append('filler_words', document.getElementById('filler-words').value);
+    formData.append('remove_freeze', document.getElementById('remove-freeze').checked);
+    formData.append('freeze_duration', document.getElementById('freeze-duration').value);
 
     try {
         const response = await fetch('/upload', {

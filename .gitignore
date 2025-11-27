@@ -1,1 +1,7 @@
 *.mp4
+*.wav
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

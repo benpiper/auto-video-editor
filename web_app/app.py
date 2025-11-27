@@ -78,10 +78,11 @@ def upload_video():
     jobs[job_id] = job
     
     # Start processing in background thread
-    # Generate output filename: {original_name}_edited_{YYYYMMDD_HHMM}.mp4
+    # Generate output filename: {original_name}_edited_{YYYYMMDD_HHMM}_{short_job_id}.mp4
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     base_name = os.path.splitext(filename)[0]
-    output_filename = f"{base_name}_edited_{timestamp}.mp4"
+    short_job_id = job_id[:8]
+    output_filename = f"{base_name}_edited_{timestamp}_{short_job_id}.mp4"
     output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
     thread = threading.Thread(
         target=process_video_async,
@@ -171,7 +172,7 @@ def download(job_id):
     if job.status != 'complete' or not job.output_path:
         return jsonify({'error': 'Video not ready'}), 400
     
-    return send_file(job.output_path, as_attachment=True, download_name='edited_video.mp4')
+    return send_file(job.output_path, as_attachment=True, download_name=os.path.basename(job.output_path))
 
 if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)

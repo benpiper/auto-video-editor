@@ -18,7 +18,11 @@ app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static', 'uploads')
 app.config['OUTPUT_FOLDER'] = os.path.join(BASE_DIR, 'static', 'outputs')
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024  # 10GB max
+
+# Ensure directories exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
 
 # In-memory job tracking
 jobs = {}
@@ -63,7 +67,8 @@ def upload_video():
         'bitrate': request.form.get('bitrate', '5000k'),
         'preset': request.form.get('preset', 'medium'),
         'use_crf': request.form.get('use_crf') == 'true',
-        'crf': int(request.form.get('crf', 18))
+        'crf': int(request.form.get('crf', 18)),
+        'filler_words': [w.strip() for w in request.form.get('filler_words', '').split(';') if w.strip()]
     }
     
     # Create job
@@ -71,7 +76,11 @@ def upload_video():
     jobs[job_id] = job
     
     # Start processing in background thread
-    output_path = os.path.join(app.config['OUTPUT_FOLDER'], f"{job_id}_output.mp4")
+    # Generate output filename: {original_name}_edited_{YYYYMMDD_HHMM}.mp4
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    base_name = os.path.splitext(filename)[0]
+    output_filename = f"{base_name}_edited_{timestamp}.mp4"
+    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
     thread = threading.Thread(
         target=process_video_async,
         args=(job_id, input_path, output_path, params)
@@ -96,14 +105,14 @@ def process_video_async(job_id, input_path, output_path, params):
             output_path,
             params['min_silence'],
             params['silence_thresh'],
-            params['crossfade'],
-            params['bitrate'],
-            params['crf'],
-            params['preset'],
-            params['use_crf'],
+            0.2,    # crossfade_duration (ignored with no_crossfade=True)
+            "5000k", # bitrate (ignored, auto-detected)
+            18,     # crf (ignored)
+            "medium", # preset (ignored)
+            False,  # use_crf
             False,  # use_gpu_encoding
-            False,  # use_crisper_whisper
-            False   # no_crossfade
+            True,   # no_crossfade (FORCE TRUE as requested)
+            params['filler_words']  # custom filler words
         )
         
         job.status = 'complete'

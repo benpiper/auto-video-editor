@@ -53,18 +53,15 @@ def detect_silence(audio_path: str, min_silence_len: int = 2000, silence_thresh:
     
     return silence_intervals_sec
 
-def detect_filler_words(audio_path: str, model_size: str = "base", use_crisper: bool = False) -> List[Tuple[float, float]]:
+def detect_filler_words(audio_path: str, model_size: str = "base", filler_words_list: List[str] = None) -> List[Tuple[float, float]]:
     """
-    Detects filler words using Whisper or CrisperWhisper.
+    Detects filler words using Whisper.
     Returns:
         List of (start, end) tuples in seconds.
     """
-    if use_crisper:
-        return detect_filler_words_crisper(audio_path)
-    else:
-        return detect_filler_words_whisper(audio_path, model_size)
+    return detect_filler_words_whisper(audio_path, model_size, filler_words_list)
 
-def detect_filler_words_whisper(audio_path: str, model_size: str = "base") -> List[Tuple[float, float]]:
+def detect_filler_words_whisper(audio_path: str, model_size: str = "base", filler_words_list: List[str] = None) -> List[Tuple[float, float]]:
     """
     Detects filler words using standard Whisper.
     Returns:
@@ -85,7 +82,12 @@ def detect_filler_words_whisper(audio_path: str, model_size: str = "base") -> Li
         language='en'
     )
     
-    filler_words = ["um", "uh", "umm", "uhh", "er", "just, you know", "like, you know"]
+    if filler_words_list:
+        filler_words = [w.lower().strip() for w in filler_words_list]
+        logging.info(f"Using custom filler words: {filler_words}")
+    else:
+        filler_words = ["um", "uh", "umm", "uhh", "er", "just", "you know", "like", "you know"]
+        logging.info(f"Using default filler words: {filler_words}")
     filler_intervals = []
     
     # Count total words for progress tracking
@@ -122,119 +124,6 @@ def detect_filler_words_whisper(audio_path: str, model_size: str = "base") -> Li
         logging.info(f"Transcript saved to: {transcript_path}")
     
     return filler_intervals
-
-def detect_filler_words_crisper(audio_path: str) -> List[Tuple[float, float]]:
-    """
-    Detects filler words using OpenAI Whisper Tiny model via HuggingFace.
-    Falls back to standard Whisper if this fails.
-    Returns:
-        List of (start, end) tuples in seconds.
-    """
-    try:
-        import torch
-        from transformers import pipeline
-        import soundfile as sf
-        import numpy as np
-        
-        logging.info("Loading Whisper Tiny model...")
-        
-        # Use GPU if available
-        device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-        model_id = "openai/whisper-tiny"
-        
-        # Create pipeline - it will load the model automatically
-        pipe = pipeline(
-            "automatic-speech-recognition",
-            model=model_id,
-            chunk_length_s=30,
-            batch_size=8,
-            return_timestamps='word',
-            dtype=torch_dtype,
-            device=device,
-            language='en',
-        )
-        
-        logging.info(f"Transcribing audio with Whisper Tiny (device: {device})...")
-        
-        # Load audio and ensure it's in the right format
-        audio_data, sample_rate = sf.read(audio_path)
-        
-        # Convert stereo to mono if needed
-        if len(audio_data.shape) > 1:
-            audio_data = np.mean(audio_data, axis=1)
-        
-        # Ensure float32 format
-        audio_data = audio_data.astype(np.float32)
-        
-        # Transcribe - pipeline will handle resampling to 16kHz automatically
-        result = pipe(
-            {"array": audio_data, "sampling_rate": sample_rate},
-            generate_kwargs={"language": "en", "task": "transcribe"}
-        )
-        
-        # Calculate actual audio duration
-        audio_duration = len(audio_data) / sample_rate
-        logging.info(f"Audio duration: {format_timestamp(audio_duration)}")
-        
-        # Extract filler words
-        filler_words = ["um", "uh", "umm", "uhh", "er"]
-        filler_intervals = []
-        
-        if "chunks" in result:
-            logging.info(f"Processing {len(result['chunks'])} transcribed chunks...")
-            for i, chunk in enumerate(result["chunks"], 1):
-                # Log transcription progress
-                chunk_text = chunk["text"].strip()
-                chunk_start = chunk["timestamp"][0] if chunk["timestamp"][0] is not None else 0
-                #logging.info(f"  Chunk {i}: [{chunk_start:.1f}s] \"{chunk_text}\"")
-                
-                # Check for filler words
-                text = chunk_text.lower().replace(",", "").replace(".", "")
-                if text in filler_words:
-                    start_time = chunk["timestamp"][0]
-                    end_time = chunk["timestamp"][1] if chunk["timestamp"][1] is not None else start_time + 0.5
-                    
-                    # Validate timestamps - skip if beyond audio duration
-                    if start_time >= audio_duration:
-                        logging.warning(f"    ⚠ Skipping invalid filler word '{text}' at {format_timestamp(start_time)} (beyond audio duration {format_timestamp(audio_duration)})")
-                        continue
-                    
-                    # Clamp end_time to audio duration
-                    if end_time > audio_duration:
-                        logging.warning(f"    ⚠ Clamping filler word '{text}' end time from {format_timestamp(end_time)} to {format_timestamp(audio_duration)}")
-                        end_time = audio_duration
-                    
-                    duration = end_time - start_time
-                    filler_intervals.append((start_time, end_time))
-                    logging.info(f"    ✓ Filler word detected: '{text}' at {format_timestamp(start_time)} - {format_timestamp(end_time)} (duration: {duration:.2f}s)")
-        
-        # Clean up GPU memory
-        if device == "cuda:0":
-            del pipe
-            torch.cuda.empty_cache()
-        
-        logging.info(f"Found {len(filler_intervals)} filler words total (Whisper Tiny).")
-        
-        # Save transcript to file
-        transcript_text = result.get("text", "")
-        if transcript_text:
-            transcript_path = audio_path.replace(".wav", "_transcript_tiny.txt")
-            with open(transcript_path, "w", encoding="utf-8") as f:
-                f.write(transcript_text)
-            logging.info(f"Transcript saved to: {transcript_path}")
-        
-        return filler_intervals
-        
-    except ImportError as e:
-        logging.error(f"Whisper Tiny requires transformers and datasets libraries: {e}")
-        logging.error("Install with: pip install transformers datasets soundfile torchaudio librosa")
-        logging.warning("Falling back to standard Whisper...")
-        return detect_filler_words_whisper(audio_path, "base")
-    except Exception as e:
-        logging.error(f"Error using Whisper Tiny: {e}")
-        logging.warning("Falling back to standard Whisper...")
-        return detect_filler_words_whisper(audio_path, "base")
 
 
 
@@ -275,14 +164,15 @@ def invert_intervals(intervals: List[Tuple[float, float]], total_duration: float
         keep_intervals.append((current_time, total_duration))
     return keep_intervals
 
-def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]], temp_dir: str = ".") -> List[str]:
+def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]], temp_dir: str = ".", target_bitrate: str = "4M") -> List[str]:
     """
-    Extract video segments using FFmpeg with stream copying (no re-encoding).
+    Extract video segments using FFmpeg with re-encoding for precise cuts.
     
     Args:
         input_path: Path to input video
         segments: List of (start, end) tuples in seconds
         temp_dir: Directory for temporary segment files
+        target_bitrate: Target video bitrate (e.g., "4M" for 4 Mbps)
     
     Returns:
         List of paths to extracted segment files
@@ -309,8 +199,10 @@ def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]]
                 '-ss', str(start),            # Seek to start (accurate, frame-level)
                 '-t', str(duration),          # Duration
                 '-c:v', 'libx264',            # Re-encode video for precise cuts
-                '-preset', 'ultrafast',       # Fast encoding preset
-                '-crf', '18',                 # High quality
+                '-preset', 'medium',          # Balanced encoding preset for quality
+                '-b:v', target_bitrate,       # Target bitrate (from source detection)
+                '-maxrate', target_bitrate,   # Max bitrate
+                '-bufsize', f'{int(target_bitrate[:-1])*2}M',  # Buffer size (2x bitrate)
                 '-c:a', 'aac',                # Re-encode audio
                 '-b:a', '192k',               # Audio bitrate
                 '-avoid_negative_ts', '1',    # Handle timestamp issues
@@ -567,7 +459,7 @@ def transpose_video_if_needed(input_path: str, rotation: int) -> str:
             os.remove(temp_path)
         return input_path
 
-def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False, use_crisper_whisper: bool = False, no_crossfade: bool = False):
+def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False, no_crossfade: bool = False, filler_words: List[str] = None):
     if not os.path.exists(input_path):
         logging.error(f"Input file not found: {input_path}")
         return
@@ -591,7 +483,7 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         silence_intervals = detect_silence(temp_audio_path, min_silence_len, silence_thresh)
         
         # 3. Detect Filler Words
-        filler_intervals = detect_filler_words(temp_audio_path, use_crisper=use_crisper_whisper)
+        filler_intervals = detect_filler_words(temp_audio_path, filler_words_list=filler_words)
         
         # 4. Combine and Merge Intervals to Remove
         all_remove_intervals = silence_intervals + filler_intervals
@@ -633,11 +525,34 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
 
         logging.info(f"Cutting video. Keeping {len(keep_intervals)} segments.")
         
+        # Detect source video bitrate
+        try:
+            import subprocess
+            result = subprocess.run(
+                ['ffprobe', '-v', 'error', '-select_streams', 'v:0',
+                 '-show_entries', 'stream=bit_rate', '-of', 'default=noprint_wrappers=1:nokey=1',
+                 working_video_path],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                source_bitrate_bps = int(result.stdout.strip())
+                source_bitrate_mbps = source_bitrate_bps / 1_000_000
+                target_bitrate = f"{int(source_bitrate_mbps)}M"
+                logging.info(f"Detected source bitrate: {source_bitrate_mbps:.2f} Mbps, using {target_bitrate} for output")
+            else:
+                target_bitrate = "4M"  # Default fallback
+                logging.warning(f"Could not detect source bitrate, using default {target_bitrate}")
+        except Exception as e:
+            target_bitrate = "4M"  # Default fallback
+            logging.warning(f"Error detecting bitrate: {e}, using default {target_bitrate}")
+        
         # 6. Extract segments and concatenate with FFmpeg (much faster than MoviePy)
         segment_files = []
         try:
-            # Extract segments using FFmpeg (stream copy - very fast)
-            segment_files = extract_segments_ffmpeg(working_video_path, keep_intervals, temp_dir=".")
+            # Extract segments using FFmpeg with detected bitrate
+            segment_files = extract_segments_ffmpeg(working_video_path, keep_intervals, temp_dir=".", target_bitrate=target_bitrate)
             
             # Get encoding parameters
             codec, preset_value, ffmpeg_params = get_encoding_params(

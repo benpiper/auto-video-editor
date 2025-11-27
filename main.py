@@ -57,18 +57,22 @@ def main():
         help="Use NVIDIA GPU (NVENC) for video encoding (requires FFmpeg with NVENC support).",
     )
     parser.add_argument(
-        "--use-crisper-whisper",
-        action="store_true",
-        help="Use CrisperWhisper for better filler word detection (requires transformers library and HuggingFace login).",
-    )
-    parser.add_argument(
         "--no-crossfade",
         action="store_true",
         help="Disable crossfades for faster processing (uses simple concatenation instead).",
     )
+    parser.add_argument(
+        "--filler-words",
+        type=str,
+        default="um;uh;umm;uhh;er;just;you know;like;you know",
+        help="Semicolon-separated list of filler words to remove (default: um;uh;umm;uhh;er;just;you know;like;you know).",
+    )
 
     args = parser.parse_args()
 
+    # Parse filler words
+    filler_words_list = [w.strip() for w in args.filler_words.split(';') if w.strip()] if args.filler_words else None
+    
     logging.info(f"Processing {args.input_file} -> {args.output_file}")
     process_video(
         args.input_file,
@@ -81,8 +85,8 @@ def main():
         args.preset,
         args.use_crf,
         args.use_gpu_encoding,
-        args.use_crisper_whisper,
         args.no_crossfade,
+        filler_words_list,
     )
     logging.info("Done.")
 

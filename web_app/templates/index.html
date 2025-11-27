@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auto Video Editor</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -20,7 +22,8 @@
                 <div class="upload-area" id="upload-area">
                     <input type="file" id="video-input" accept="video/*" hidden>
                     <div class="upload-prompt">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="17 8 12 3 7 8"></polyline>
                             <line x1="12" y1="3" x2="12" y2="15"></line>
@@ -35,46 +38,32 @@
             <!-- Parameters Section -->
             <section id="params-section" class="card hidden">
                 <h2>Processing Options</h2>
-                
+
                 <div class="param-group">
                     <label>Silence Detection</label>
                     <div class="param-row">
                         <div class="param-item">
                             <label for="min-silence">Min Silence (ms)</label>
-                            <input type="number" id="min-silence" value="1500" min="500" max="5000" step="100">
+                            <input type="number" id="min-silence" value="900" min="500" max="5000" step="100">
                             <small>Lower = more aggressive</small>
                         </div>
                         <div class="param-item">
                             <label for="silence-thresh">Threshold (dBFS)</label>
-                            <input type="number" id="silence-thresh" value="-40" min="-60" max="-20" step="1">
+                            <input type="number" id="silence-thresh" value="-64" min="-80" max="-20" step="1">
                             <small>Higher = more aggressive</small>
                         </div>
                     </div>
                 </div>
 
                 <div class="param-group">
-                    <label>Video Quality</label>
-                    <div class="param-row">
-                        <div class="param-item">
-                            <label for="preset">Encoding Preset</label>
-                            <select id="preset">
-                                <option value="veryfast">Very Fast (5-8 min)</option>
-                                <option value="fast">Fast</option>
-                                <option value="medium" selected>Medium - Balanced (10-15 min)</option>
-                                <option value="slow">Slow - Best Quality (20-30 min)</option>
-                            </select>
-                        </div>
-                        <div class="param-item">
-                            <label for="bitrate">Bitrate</label>
-                            <input type="text" id="bitrate" value="5000k" placeholder="e.g., 5000k">
-                            <small>Higher = better quality</small>
-                        </div>
-                    </div>
+                    <label for="filler-words">Filler Words (semicolon-separated)</label>
+                    <input type="text" id="filler-words" value="um; uh; umm; uhh; er; just; you know; like; you know"
+                        placeholder="e.g. um; uh; like; you know">
+                    <small>Words or phrases to automatically remove</small>
                 </div>
 
-                <div class="param-group">
-                    <label for="crossfade">Crossfade Duration: <span id="crossfade-value">0.2s</span></label>
-                    <input type="range" id="crossfade" min="0" max="1" step="0.1" value="0.2">
+                <div class="info-box">
+                    <p><strong>Note:</strong> Video quality and bitrate will automatically match your source video.</p>
                 </div>
 
                 <button id="process-btn" class="btn-primary">Start Processing</button>
@@ -100,10 +89,12 @@
         </main>
 
         <footer>
-            <p>Powered by Auto Video Editor | <a href="https://github.com/yourusername/auto-video-editor" target="_blank">GitHub</a></p>
+            <p>Powered by Auto Video Editor | <a href="https://github.com/benpiper/auto-video-editor"
+                    target="_blank">GitHub</a></p>
         </footer>
     </div>
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
+
 </html>

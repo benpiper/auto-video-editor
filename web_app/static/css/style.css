@@ -109,7 +109,7 @@ header p {
     margin-bottom: 1.5rem;
 }
 
-.param-group > label {
+.param-group>label {
     display: block;
     font-weight: 600;
     margin-bottom: 0.5rem;
@@ -147,6 +147,24 @@ header p {
     font-size: 0.8rem;
     color: var(--text-muted);
     margin-top: 0.25rem;
+}
+
+.info-box {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.info-box p {
+    margin: 0;
+    color: var(--text);
+    font-size: 0.95rem;
+}
+
+.info-box strong {
+    color: var(--success);
 }
 
 input[type="range"] {
@@ -220,8 +238,13 @@ input[type="range"] {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .hidden {
@@ -248,15 +271,15 @@ footer a:hover {
     .container {
         padding: 1rem;
     }
-    
+
     header h1 {
         font-size: 2rem;
     }
-    
+
     .param-row {
         grid-template-columns: 1fr;
     }
-    
+
     .card {
         padding: 1.5rem;
     }

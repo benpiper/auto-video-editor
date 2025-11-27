@@ -67,9 +67,7 @@ processBtn.addEventListener('click', async () => {
     formData.append('video', selectedFile);
     formData.append('min_silence', document.getElementById('min-silence').value);
     formData.append('silence_thresh', document.getElementById('silence-thresh').value);
-    formData.append('crossfade', document.getElementById('crossfade').value);
-    formData.append('bitrate', document.getElementById('bitrate').value);
-    formData.append('preset', document.getElementById('preset').value);
+    formData.append('filler_words', document.getElementById('filler-words').value);
 
     try {
         const response = await fetch('/upload', {
@@ -147,9 +145,4 @@ downloadBtn.addEventListener('click', () => {
 // New video button
 newVideoBtn.addEventListener('click', () => {
     location.reload();
-});
-
-// Crossfade slider
-document.getElementById('crossfade').addEventListener('input', (e) => {
-    document.getElementById('crossfade-value').textContent = `${e.target.value}s`;
 });

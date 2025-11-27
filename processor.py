@@ -93,7 +93,7 @@ def detect_filler_words_whisper(audio_path: str, model_size: str = "base", fille
         filler_words = [w.lower().strip() for w in filler_words_list]
         logging.info(f"Using custom filler words: {filler_words}")
     else:
-        filler_words = ["um", "uh", "umm", "uhh", "er", "just", "you know", "like", "you know"]
+        filler_words = ["um", "uh", "umm", "uhh", "er", "just", "you know", "like, you know"]
         logging.info(f"Using default filler words: {filler_words}")
     filler_intervals = []
     

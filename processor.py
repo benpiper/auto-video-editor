@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import List, Tuple
+from typing import List, Tuple, Optional, Callable
 import moviepy.editor as mp
 from moviepy.editor import VideoFileClip, concatenate_videoclips
 import whisper
@@ -242,7 +242,7 @@ def invert_intervals(intervals: List[Tuple[float, float]], total_duration: float
         keep_intervals.append((current_time, total_duration))
     return keep_intervals
 
-def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]], temp_dir: str = ".", target_bitrate: str = "4M") -> List[str]:
+def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]], temp_dir: str = ".", target_bitrate: str = "4M", progress_callback: Optional[Callable[[int, str], None]] = None) -> List[str]:
     """
     Extract video segments using FFmpeg with re-encoding for precise cuts.
     
@@ -265,6 +265,10 @@ def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]]
         segment_file = os.path.join(temp_dir, f"segment_{i:04d}.mp4")
         
         logging.info(f"Extracting segment {i+1}/{len(segments)}: {format_timestamp(start)} - {format_timestamp(end)}")
+        if progress_callback:
+            # Map segment extraction to 60-90% range
+            progress = 60 + int(30 * ((i + 1) / len(segments)))
+            progress_callback(progress, f"Extracting segment {i+1}/{len(segments)}")
         
         try:
             # Use FFmpeg to extract segment with re-encoding for precise cuts
@@ -537,7 +541,7 @@ def transpose_video_if_needed(input_path: str, rotation: int) -> str:
             os.remove(temp_path)
         return input_path
 
-def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False, no_crossfade: bool = False, filler_words: List[str] = None, freeze_duration: float = None, freeze_noise: float = 0.001):
+def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False, no_crossfade: bool = False, filler_words: List[str] = None, freeze_duration: float = None, freeze_noise: float = 0.001, progress_callback: Optional[Callable[[int, str], None]] = None):
     if not os.path.exists(input_path):
         logging.error(f"Input file not found: {input_path}")
         return
@@ -553,13 +557,20 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
 
     temp_audio_path = "temp_audio.wav"
     
+    if progress_callback:
+        progress_callback(0, "Starting processing...")
+    
     try:
         # 1. Extract Audio (from transposed video if applicable)
+        if progress_callback:
+            progress_callback(5, "Extracting audio...")
         has_audio = extract_audio(working_video_path, temp_audio_path)
         
         # 2. Detect Silence (only if audio exists)
         silence_intervals = []
         if has_audio:
+            if progress_callback:
+                progress_callback(10, "Detecting silence...")
             silence_intervals = detect_silence(temp_audio_path, min_silence_len, silence_thresh)
         else:
             logging.info("Skipping silence detection (no audio)")
@@ -567,6 +578,8 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         # 3. Detect Filler Words (only if audio exists)
         filler_intervals = []
         if has_audio:
+            if progress_callback:
+                progress_callback(20, "Detecting filler words (this may take a while)...")
             filler_intervals = detect_filler_words(temp_audio_path, filler_words_list=filler_words)
         else:
             logging.info("Skipping filler word detection (no audio)")
@@ -574,9 +587,13 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         # 4. Detect Freeze Frames (if enabled)
         freeze_intervals = []
         if freeze_duration is not None and freeze_duration > 0:
+            if progress_callback:
+                progress_callback(40, "Detecting freeze frames...")
             freeze_intervals = detect_freeze_frames(working_video_path, min_duration=freeze_duration, noise_tolerance=freeze_noise)
         
         # 5. Combine and Merge Intervals to Remove
+        if progress_callback:
+            progress_callback(50, "Calculating cuts...")
         all_remove_intervals = silence_intervals + filler_intervals + freeze_intervals
         logging.info(f"Total intervals to remove: {len(silence_intervals)} silence + {len(filler_intervals)} filler words + {len(freeze_intervals)} freeze frames = {len(all_remove_intervals)}")
         
@@ -643,7 +660,9 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         segment_files = []
         try:
             # Extract segments using FFmpeg with detected bitrate
-            segment_files = extract_segments_ffmpeg(working_video_path, keep_intervals, temp_dir=".", target_bitrate=target_bitrate)
+            if progress_callback:
+                progress_callback(60, "Extracting video segments...")
+            segment_files = extract_segments_ffmpeg(working_video_path, keep_intervals, temp_dir=".", target_bitrate=target_bitrate, progress_callback=progress_callback)
             
             # Get encoding parameters
             codec, preset_value, ffmpeg_params = get_encoding_params(
@@ -654,6 +673,8 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
             if no_crossfade:
                 # Use stream copy for maximum speed (no re-encoding)
                 logging.info("Using FFmpeg stream copy (no re-encoding) for maximum speed")
+                if progress_callback:
+                    progress_callback(95, "Concatenating segments...")
                 concatenate_segments_ffmpeg(
                     segment_files,
                     output_path,
@@ -666,6 +687,8 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
                 # Re-encode with crossfades (slower but still faster than MoviePy)
                 logging.warning("Crossfades with FFmpeg require re-encoding (slower)")
                 logging.info("Consider using --no-crossfade for much faster processing")
+                if progress_callback:
+                    progress_callback(95, "Concatenating segments (this may take a while)...")
                 concatenate_segments_ffmpeg(
                     segment_files,
                     output_path,

@@ -102,6 +102,10 @@ def process_video_async(job_id, input_path, output_path, params):
         job.message = 'Starting video processing...'
         job.progress = 5
         
+        def update_progress(progress, message):
+            job.progress = progress
+            job.message = message
+
         # Process video
         process_video(
             input_path,
@@ -117,7 +121,8 @@ def process_video_async(job_id, input_path, output_path, params):
             True,   # no_crossfade (FORCE TRUE as requested)
             params['filler_words'],  # custom filler words
             params['freeze_duration'] if params['remove_freeze'] else None,  # freeze_duration
-            0.001   # freeze_noise (default)
+            0.001,   # freeze_noise (default)
+            update_progress # progress_callback
         )
         
         job.status = 'complete'

@@ -9,10 +9,11 @@ A Python tool that automatically detects and removes silence, filler words (like
 - **Silence Detection**: Automatically removes silent segments based on audio amplitude
 - **Filler Word Removal**: Uses OpenAI's Whisper model to transcribe and identify filler words (customizable list)
 - **Freeze Frame Detection**: Automatically removes moments where the screen is static for too long
+- **Background Removal**: Remove video backgrounds using AI-powered Robust Video Matting (RVM) - no green screen required!
 - **High-Speed Processing**: Uses FFmpeg for fast video concatenation and stream copying where possible
 - **High-Quality Output**: Configurable bitrate and encoding settings to maintain video quality
 - **Web Interface**: User-friendly web UI for easy uploading and configuration
-- **GPU Acceleration**: Leverages NVIDIA CUDA for fast Whisper transcription
+- **GPU Acceleration**: Leverages NVIDIA CUDA for fast Whisper transcription and RVM processing
 
 ## Installation
 
@@ -74,6 +75,11 @@ uv run python main.py input.mp4 output.mp4 \
 - `--filler-words` - Semicolon-separated list of filler words (default: `um;uh;umm;uhh;er;just;you know;like;you know`)
 - `--freeze-duration` - Remove still moments longer than this (seconds). Disabled by default.
 - `--freeze-noise` - Noise tolerance for freeze detection (default: `0.001`)
+- `--remove-background` - Enable background removal using RVM
+- `--bg-color` - Background color or 'transparent' (default: `green`)
+- `--bg-image` - Path to background image file (takes precedence over `--bg-color`)
+- `--rvm-model` - RVM model variant: `mobilenetv3` (faster) or `resnet50` (higher quality)
+- `--rvm-downsample` - Downsample ratio for RVM (default: auto-detect based on resolution)
 
 #### Video Quality Parameters
 - `--bitrate` - Target video bitrate (default: `5000k`)
@@ -97,6 +103,38 @@ uv run python main.py video.mp4 preview.mp4 \
     --preset veryfast --bitrate 2000k --no-crossfade
 ```
 
+**Remove background from a video:**
+```bash
+uv run python main.py input.mp4 output.mp4 --remove-background
+```
+
+**Remove background with custom color:**
+```bash
+uv run python main.py input.mp4 output.mp4 \
+    --remove-background --bg-color "#FFFFFF"
+```
+
+**Remove background with transparency (for compositing):**
+```bash
+uv run python main.py input.mp4 output.mov \
+    --remove-background --bg-color transparent
+```
+
+**Replace background with custom image:**
+```bash
+uv run python main.py input.mp4 output.mp4 \
+    --remove-background --bg-image path/to/background.jpg
+```
+
+**Full processing with all features:**
+```bash
+uv run python main.py lecture.mp4 final.mp4 \
+    --min-silence 1500 \
+    --filler-words "um;uh;like" \
+    --freeze-duration 5 \
+    --remove-background --bg-color green
+```
+
 ## How It Works
 
 1. **Audio Extraction**: Extracts audio track (handles silent videos gracefully)
@@ -106,7 +144,8 @@ uv run python main.py video.mp4 preview.mp4 \
    - **Freeze Frames**: Uses FFmpeg to detect static visual scenes
 3. **Merging**: Combines all removal intervals to optimize cuts
 4. **Processing**: Uses FFmpeg to extract and concatenate segments efficiently
-5. **Encoding**: Applies high-quality encoding settings
+5. **Background Removal** (optional): Applies RVM to remove backgrounds with AI
+6. **Encoding**: Applies high-quality encoding settings
 
 ## Documentation
 

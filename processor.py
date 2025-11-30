@@ -541,7 +541,7 @@ def transpose_video_if_needed(input_path: str, rotation: int) -> str:
             os.remove(temp_path)
         return input_path
 
-def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False, no_crossfade: bool = False, filler_words: List[str] = None, freeze_duration: float = None, freeze_noise: float = 0.001, progress_callback: Optional[Callable[[int, str], None]] = None):
+def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False, no_crossfade: bool = False, filler_words: List[str] = None, freeze_duration: float = None, freeze_noise: float = 0.001, remove_background: bool = False, bg_color: str = "green", bg_image: Optional[str] = None, rvm_model: str = "mobilenetv3", rvm_downsample: Optional[float] = None, progress_callback: Optional[Callable[[int, str], None]] = None):
     if not os.path.exists(input_path):
         logging.error(f"Input file not found: {input_path}")
         return
@@ -627,9 +627,20 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         
         if len(keep_intervals) == 1 and keep_intervals[0] == (0.0, total_duration):
             logging.info("✅ No cuts needed - no silence or filler words detected!")
-            logging.info("The video is already optimized. Exiting without re-encoding.")
-            video.close()
-            return
+            
+            # Check if background removal is requested
+            if remove_background:
+                logging.info("Background removal is enabled - will process the video for background removal only...")
+                # Copy input to output, then apply background removal
+                import shutil
+                shutil.copy2(working_video_path, output_path)
+                logging.info(f"Copied original video to: {output_path}")
+                video.close()
+                # Continue to background removal below
+            else:
+                logging.info("The video is already optimized. Exiting without re-encoding.")
+                video.close()
+                return
 
         logging.info(f"Cutting video. Keeping {len(keep_intervals)} segments.")
         
@@ -709,6 +720,42 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
                         logging.debug(f"Removed temporary segment: {segment_file}")
                     except Exception as e:
                         logging.warning(f"Failed to remove temporary segment {segment_file}: {e}")
+        
+        # 7. Apply background removal if requested (post-processing)
+        # This runs after video processing completes (whether cuts were made or not)
+        if remove_background and os.path.exists(output_path):
+            logging.info("Applying background removal...")
+            if progress_callback:
+                progress_callback(98, "Removing background (this may take a while)...")
+            
+            try:
+                from background_remover import apply_background_removal
+                
+                # Create temporary file for background-removed video
+                import tempfile
+                temp_fd, temp_bg_removed = tempfile.mkstemp(suffix='.mp4', prefix='bg_removed_')
+                os.close(temp_fd)
+                
+                # Apply background removal to the processed video
+                apply_background_removal(
+                    output_path,
+                    temp_bg_removed,
+                    model_name=rvm_model,
+                    background_color=bg_color,
+                    background_image=bg_image,
+                    downsample_ratio=rvm_downsample
+                )
+                
+                # Replace original output with background-removed version
+                if os.path.exists(temp_bg_removed):
+                    os.replace(temp_bg_removed, output_path)
+                    logging.info("✅ Background removal complete")
+                
+            except Exception as bg_error:
+                logging.error(f"Background removal failed: {bg_error}")
+                import traceback
+                traceback.print_exc()
+                logging.warning("Keeping video without background removal")
         
     except KeyboardInterrupt:
         logging.warning("Processing interrupted by user (Ctrl+C)")

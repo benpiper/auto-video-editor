@@ -70,8 +70,20 @@ def upload_video():
         'crf': int(request.form.get('crf', 18)),
         'filler_words': [w.strip() for w in request.form.get('filler_words', '').split(';') if w.strip()],
         'remove_freeze': request.form.get('remove_freeze') == 'true',
-        'freeze_duration': float(request.form.get('freeze_duration', 5))
+        'freeze_duration': float(request.form.get('freeze_duration', 5)),
+        'remove_background': request.form.get('remove_background') == 'true',
+        'bg_color': request.form.get('bg_color', 'green'),
+        'bg_image': None,
+        'rvm_model': request.form.get('rvm_model', 'mobilenetv3')
     }
+    
+    # Handle background image upload if provided
+    if 'bg_image' in request.files and request.files['bg_image'].filename:
+        bg_image_file = request.files['bg_image']
+        bg_image_filename = secure_filename(bg_image_file.filename)
+        bg_image_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{job_id}_bg_{bg_image_filename}")
+        bg_image_file.save(bg_image_path)
+        params['bg_image'] = bg_image_path
     
     # Create job
     job = Job(job_id, filename)
@@ -112,16 +124,21 @@ def process_video_async(job_id, input_path, output_path, params):
             output_path,
             params['min_silence'],
             params['silence_thresh'],
-            0.2,    # crossfade_duration (ignored with no_crossfade=True)
-            "5000k", # bitrate (ignored, auto-detected)
-            18,     # crf (ignored)
-            "medium", # preset (ignored)
+            0.2,    # crossfade_duration
+            "5000k", # bitrate (auto-detected)
+            18,     # crf
+            "medium", # preset
             False,  # use_crf
             False,  # use_gpu_encoding
-            True,   # no_crossfade (FORCE TRUE as requested)
-            params['filler_words'],  # custom filler words
+            True,   # no_crossfade (FORCE TRUE)
+            params['filler_words'],  # filler_words
             params['freeze_duration'] if params['remove_freeze'] else None,  # freeze_duration
-            0.001,   # freeze_noise (default)
+            0.001,   # freeze_noise
+            params['remove_background'],  # remove_background
+            params['bg_color'],  # bg_color
+            params['bg_image'],  # bg_image
+            params['rvm_model'],  # rvm_model
+            None,  # rvm_downsample (auto)
             update_progress # progress_callback
         )
         
@@ -139,6 +156,9 @@ def process_video_async(job_id, input_path, output_path, params):
         # Cleanup input file
         if os.path.exists(input_path):
             os.remove(input_path)
+        # Cleanup background image if used
+        if params.get('bg_image') and os.path.exists(params['bg_image']):
+            os.remove(params['bg_image'])
 
 @app.route('/progress/<job_id>')
 def progress(job_id):

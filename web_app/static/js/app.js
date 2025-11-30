@@ -71,6 +71,31 @@ processBtn.addEventListener('click', async () => {
     formData.append('remove_freeze', document.getElementById('remove-freeze').checked);
     formData.append('freeze_duration', document.getElementById('freeze-duration').value);
 
+    // Background removal parameters
+    const removeBg = document.getElementById('remove-background').checked;
+    formData.append('remove_background', removeBg);
+
+    if (removeBg) {
+        const bgMode = document.getElementById('bg-mode').value;
+        formData.append('rvm_model', document.getElementById('rvm-model').value);
+
+        if (bgMode === 'color') {
+            formData.append('bg_color', document.getElementById('bg-color').value);
+        } else if (bgMode === 'transparent') {
+            formData.append('bg_color', 'transparent');
+        } else if (bgMode === 'image') {
+            const bgImageFile = document.getElementById('bg-image').files[0];
+            if (bgImageFile) {
+                formData.append('bg_image', bgImageFile);
+            } else {
+                alert('Please select a background image');
+                processBtn.disabled = false;
+                processBtn.textContent = 'Start Processing';
+                return;
+            }
+        }
+    }
+
     try {
         const response = await fetch('/upload', {
             method: 'POST',
@@ -147,4 +172,33 @@ downloadBtn.addEventListener('click', () => {
 // New video button
 newVideoBtn.addEventListener('click', () => {
     location.reload();
+});
+
+// Background removal UI toggles
+document.getElementById('remove-background').addEventListener('change', (e) => {
+    const bgOptions = document.getElementById('bg-options');
+    const rvmAdvanced = document.getElementById('rvm-advanced');
+    if (e.target.checked) {
+        bgOptions.style.display = 'flex';
+        rvmAdvanced.style.display = 'block';
+    } else {
+        bgOptions.style.display = 'none';
+        rvmAdvanced.style.display = 'none';
+    }
+});
+
+document.getElementById('bg-mode').addEventListener('change', (e) => {
+    const colorGroup = document.getElementById('bg-color-group');
+    const imageGroup = document.getElementById('bg-image-group');
+
+    if (e.target.value === 'color') {
+        colorGroup.classList.remove('hidden');
+        imageGroup.classList.add('hidden');
+    } else if (e.target.value === 'image') {
+        colorGroup.classList.add('hidden');
+        imageGroup.classList.remove('hidden');
+    } else { // transparent
+        colorGroup.classList.add('hidden');
+        imageGroup.classList.add('hidden');
+    }
 });

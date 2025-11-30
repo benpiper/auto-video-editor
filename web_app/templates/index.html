@@ -12,7 +12,7 @@
     <div class="container">
         <header>
             <h1>🎬 Auto Video Editor</h1>
-            <p>Remove silence and filler words from your videos</p>
+            <p>Remove silence, filler words, and backgrounds from your videos</p>
         </header>
 
         <main>
@@ -71,6 +71,51 @@
                         <label for="freeze-duration">Min Duration (seconds)</label>
                         <input type="number" id="freeze-duration" value="5" min="1" max="30" step="1">
                         <small>Remove if screen is still for this long</small>
+                    </div>
+                </div>
+
+                <div class="param-group">
+                    <label>
+                        <input type="checkbox" id="remove-background">
+                        Remove Background (AI-powered)
+                    </label>
+                    <small style="display: block; margin: 0.5rem 0 1rem 0; color: #666;">Uses Robust Video Matting - no
+                        green screen required! Model (~140MB) will download on first use.</small>
+
+                    <div id="bg-options" class="param-row" style="display: none; margin-top: 0.5rem;">
+                        <div class="param-item">
+                            <label for="bg-mode">Background Type</label>
+                            <select id="bg-mode">
+                                <option value="color">Solid Color</option>
+                                <option value="image">Custom Image</option>
+                                <option value="transparent">Transparent</option>
+                            </select>
+                        </div>
+
+                        <div class="param-item" id="bg-color-group">
+                            <label for="bg-color">Color</label>
+                            <select id="bg-color">
+                                <option value="green">Green</option>
+                                <option value="white">White</option>
+                                <option value="blue">Blue</option>
+                                <option value="black">Black</option>
+                                <option value="red">Red</option>
+                            </select>
+                        </div>
+
+                        <div class="param-item hidden" id="bg-image-group">
+                            <label for="bg-image">Background Image</label>
+                            <input type="file" id="bg-image" accept="image/*">
+                            <small>Will be resized to match video</small>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 0.5rem;" id="rvm-advanced">
+                        <label for="rvm-model">Model Quality</label>
+                        <select id="rvm-model" style="margin-top: 0.25rem; margin-bottom: 0.5rem;">
+                            <option value="mobilenetv3">MobileNetV3 (Faster, recommended)</option>
+                            <option value="resnet50">ResNet50 (Higher quality, slower)</option>
+                        </select>
                     </div>
                 </div>
 

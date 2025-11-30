@@ -163,7 +163,7 @@ def detect_freeze_frames(video_path: str, min_duration: float = 5.0, noise_toler
             cmd,
             capture_output=True,
             text=True,
-            timeout=300
+            timeout=1800
         )
         
         # Parse freeze detection from stderr
@@ -296,7 +296,7 @@ def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]]
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=300
+                timeout=1800
             )
             
             if result.returncode != 0:
@@ -377,7 +377,7 @@ def concatenate_segments_ffmpeg(segment_files: List[str], output_path: str, code
             cmd,
             capture_output=True,
             text=True,
-            timeout=600
+            timeout=1200
         )
         
         if result.returncode != 0:
@@ -531,7 +531,7 @@ def transpose_video_if_needed(input_path: str, rotation: int) -> str:
              '-c:a', 'copy', '-y', temp_path],
             capture_output=True,
             check=True,
-            timeout=300
+            timeout=1800
         )
         logging.info(f"Video transposed successfully to {temp_path}")
         return temp_path

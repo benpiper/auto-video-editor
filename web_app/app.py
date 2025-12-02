@@ -74,7 +74,17 @@ def upload_video():
         'remove_background': request.form.get('remove_background') == 'true',
         'bg_color': request.form.get('bg_color', 'green'),
         'bg_image': None,
-        'rvm_model': request.form.get('rvm_model', 'mobilenetv3')
+        'rvm_model': request.form.get('rvm_model', 'mobilenetv3'),
+        # Morphological cleanup
+        'rvm_erode': int(request.form.get('rvm_erode', 0)),
+        'rvm_dilate': int(request.form.get('rvm_dilate', 0)),
+        'rvm_median': int(request.form.get('rvm_median', 0)),
+        'rvm_blur': int(request.form.get('rvm_blur', 0)),
+        # Segmentation
+        'use_segmentation': request.form.get('use_segmentation') == 'true',
+        'seg_model': request.form.get('seg_model', 'general'),
+        'seg_threshold': float(request.form.get('seg_threshold', 0.5)),
+        'seg_smooth': int(request.form.get('seg_smooth', 5)),
     }
     
     # Handle background image upload if provided
@@ -139,6 +149,14 @@ def process_video_async(job_id, input_path, output_path, params):
             params['bg_image'],  # bg_image
             params['rvm_model'],  # rvm_model
             None,  # rvm_downsample (auto)
+            params['use_segmentation'],  # use_segmentation
+            params['seg_model'],  # seg_model
+            params['seg_threshold'],  # seg_threshold
+            params['seg_smooth'],  # seg_smooth
+            params['rvm_erode'],  # rvm_erode
+            params['rvm_dilate'],  # rvm_dilate
+            params['rvm_median'],  # rvm_median
+            params['rvm_blur'],  # rvm_blur
             update_progress # progress_callback
         )
         

@@ -13,6 +13,7 @@ dependencies = [
     "datasets>=4.4.1",
     "flask>=3.1.2",
     "librosa>=0.11.0",
+    "mediapipe>=0.10.9",
     "moviepy<2.0",
     "numpy>=2.2.6",
     "opencv-python>=4.5.0",
@@ -25,4 +26,5 @@ dependencies = [
     "transformers>=4.57.3",
     "torchvision>=0.24.1",
 ]
+
 

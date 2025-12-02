@@ -148,6 +148,61 @@ def parse_background_color(color: str) -> Optional[Tuple[float, float, float]]:
     return (0.0, 1.0, 0.0)
 
 
+def apply_morphological_cleanup(
+    alpha_mask: np.ndarray,
+    erode_kernel: int = 0,
+    dilate_kernel: int = 0,
+    median_size: int = 0,
+    blur_size: int = 0
+) -> np.ndarray:
+    """
+    Apply morphological operations to clean up alpha matte.
+    
+    Args:
+        alpha_mask: Alpha channel as numpy array (H, W) with values 0-255
+        erode_kernel: Erosion kernel size (removes background artifacts)
+        dilate_kernel: Dilation kernel size (fills holes in foreground)
+        median_size: Median filter size (reduces noise)
+        blur_size: Gaussian blur radius (smooths edges)
+    
+    Returns:
+        Cleaned alpha mask
+    """
+    if erode_kernel == 0 and dilate_kernel == 0 and median_size == 0 and blur_size == 0:
+        return alpha_mask
+    
+    logging.info(f"Applying morphological cleanup: erode={erode_kernel}, dilate={dilate_kernel}, median={median_size}, blur={blur_size}")
+    
+    # Work with uint8 for morphological operations
+    mask = alpha_mask.astype(np.uint8)
+    
+    # 1. Median filter (removes salt-and-pepper noise)
+    if median_size > 0:
+        # Ensure size is odd
+        if median_size % 2 == 0:
+            median_size += 1
+        mask = cv2.medianBlur(mask, median_size)
+    
+    # 2. Erosion (removes small background artifacts)
+    if erode_kernel > 0:
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (erode_kernel, erode_kernel))
+        mask = cv2.erode(mask, kernel, iterations=1)
+    
+    # 3. Dilation (fills holes, restores size)
+    if dilate_kernel > 0:
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (dilate_kernel, dilate_kernel))
+        mask = cv2.dilate(mask, kernel, iterations=1)
+    
+    # 4. Gaussian blur (smooth edges)
+    if blur_size > 0:
+        # Ensure odd size
+        if blur_size % 2 == 0:
+            blur_size += 1
+        mask = cv2.GaussianBlur(mask, (blur_size, blur_size), 0)
+    
+    return mask
+
+
 def load_background_image(image_path: str, width: int, height: int, device: str = 'cpu') -> torch.Tensor:
     """
     Load and prepare background image for compositing.
@@ -196,7 +251,11 @@ def remove_background(
     background_color: str = 'green',
     background_image: Optional[str] = None,
     downsample_ratio: Optional[float] = None,
-    device: str = 'auto'
+    device: str = 'auto',
+    erode_kernel: int = 0,
+    dilate_kernel: int = 0,
+    median_size: int = 0,
+    blur_size: int = 0
 ) -> None:
     """
     Remove background from video using RVM.
@@ -209,6 +268,10 @@ def remove_background(
         background_image: Path to background image file (takes precedence over background_color)
         downsample_ratio: Downsample ratio for processing (None for auto)
         device: Device to use for inference
+        erode_kernel: Erosion kernel size for morphological cleanup
+        dilate_kernel: Dilation kernel size for morphological cleanup
+        median_size: Median filter size for morphological cleanup
+        blur_size: Gaussian blur size for morphological cleanup
     """
     logging.info(f"Removing background from {input_path}...")
     
@@ -300,6 +363,23 @@ def remove_background(
             
             # Run model
             fgr, pha, *rec = model(src, *rec, downsample_ratio)
+            
+            # Apply morphological cleanup to alpha matte
+            if erode_kernel > 0 or dilate_kernel > 0 or median_size > 0 or blur_size > 0:
+                # Convert alpha to numpy (0-255)
+                pha_np = (pha[0, 0].cpu().numpy() * 255).astype(np.uint8)
+                
+                # Apply cleanup
+                pha_cleaned = apply_morphological_cleanup(
+                    pha_np,
+                    erode_kernel=erode_kernel,
+                    dilate_kernel=dilate_kernel,
+                    median_size=median_size,
+                    blur_size=blur_size
+                )
+                
+                # Convert back to tensor (0-1)
+                pha = torch.from_numpy(pha_cleaned).float().div(255.0).unsqueeze(0).unsqueeze(0).to(device)
             
             # Compose output
             if bg_color is None and bg_tensor is None:
@@ -398,7 +478,11 @@ def apply_background_removal(
     model_name: str = 'mobilenetv3',
     background_color: str = 'green',
     background_image: Optional[str] = None,
-    downsample_ratio: Optional[float] = None
+    downsample_ratio: Optional[float] = None,
+    erode_kernel: int = 0,
+    dilate_kernel: int = 0,
+    median_size: int = 0,
+    blur_size: int = 0
 ) -> str:
     """
     Main function to apply background removal to a video file.
@@ -410,6 +494,10 @@ def apply_background_removal(
         background_color: Background color or 'transparent' (ignored if background_image is set)
         background_image: Path to background image file
         downsample_ratio: Downsample ratio (None for auto)
+        erode_kernel: Erosion kernel size for morphological cleanup
+        dilate_kernel: Dilation kernel size for morphological cleanup
+        median_size: Median filter size for morphological cleanup
+        blur_size: Gaussian blur size for morphological cleanup
     
     Returns:
         Path to output video
@@ -421,7 +509,11 @@ def apply_background_removal(
             model_name,
             background_color,
             background_image,
-            downsample_ratio
+            downsample_ratio,
+            erode_kernel=erode_kernel,
+            dilate_kernel=dilate_kernel,
+            median_size=median_size,
+            blur_size=blur_size
         )
         return output_path
     except Exception as e:

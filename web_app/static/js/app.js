@@ -77,8 +77,11 @@ processBtn.addEventListener('click', async () => {
 
     if (removeBg) {
         const bgMode = document.getElementById('bg-mode').value;
+        const bgMethod = document.querySelector('input[name="bg-method"]:checked').value;
+
         formData.append('rvm_model', document.getElementById('rvm-model').value);
 
+        // Background type
         if (bgMode === 'color') {
             formData.append('bg_color', document.getElementById('bg-color').value);
         } else if (bgMode === 'transparent') {
@@ -93,6 +96,20 @@ processBtn.addEventListener('click', async () => {
                 processBtn.textContent = 'Start Processing';
                 return;
             }
+        }
+
+        // Segmentation or RVM
+        if (bgMethod === 'segmentation') {
+            formData.append('use_segmentation', 'true');
+            formData.append('seg_model', document.getElementById('seg-model').value);
+            formData.append('seg_threshold', document.getElementById('seg-threshold').value);
+            formData.append('seg_smooth', document.getElementById('seg-smooth').value);
+        } else {
+            // RVM with morphological cleanup
+            formData.append('rvm_erode', document.getElementById('rvm-erode').value);
+            formData.append('rvm_dilate', document.getElementById('rvm-dilate').value);
+            formData.append('rvm_median', document.getElementById('rvm-median').value);
+            formData.append('rvm_blur', document.getElementById('rvm-blur').value);
         }
     }
 
@@ -201,4 +218,64 @@ document.getElementById('bg-mode').addEventListener('change', (e) => {
         colorGroup.classList.add('hidden');
         imageGroup.classList.add('hidden');
     }
+});
+
+// Morphological cleanup preset handler
+document.getElementById('morph-preset').addEventListener('change', (e) => {
+    const presets = {
+        none: [0, 0, 0, 0],
+        light: [3, 5, 5, 0],
+        aggressive: [5, 7, 7, 0]
+    };
+
+    const preset = presets[e.target.value] || [0, 0, 0, 0];
+    document.getElementById('rvm-erode').value = preset[0];
+    document.getElementById('rvm-dilate').value = preset[1];
+    document.getElementById('rvm-median').value = preset[2];
+    document.getElementById('rvm-blur').value = preset[3];
+
+    // Update displayed values
+    document.getElementById('erode-val').textContent = preset[0];
+    document.getElementById('dilate-val').textContent = preset[1];
+    document.getElementById('median-val').textContent = preset[2];
+    document.getElementById('blur-val').textContent = preset[3];
+});
+
+// Update slider value displays
+['rvm-erode', 'rvm-dilate', 'rvm-median', 'rvm-blur'].forEach(id => {
+    const slider = document.getElementById(id);
+    const valueId = id.replace('rvm-', '') + '-val';
+    slider.addEventListener('input', (e) => {
+        document.getElementById(valueId).textContent = e.target.value;
+        // Reset preset to custom when manually changing
+        document.getElementById('morph-preset').value = 'none';
+    });
+});
+
+// Update segmentation slider value displays
+document.getElementById('seg-threshold').addEventListener('input', (e) => {
+    document.getElementById('threshold-val').textContent = parseFloat(e.target.value).toFixed(2);
+});
+
+document.getElementById('seg-smooth').addEventListener('input', (e) => {
+    document.getElementById('smooth-val').textContent = e.target.value;
+});
+
+// Background method toggle (RVM vs Segmentation)
+document.querySelectorAll('input[name="bg-method"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        const morphSection = document.getElementById('morph-cleanup-section');
+        const segSection = document.getElementById('seg-options-section');
+        const rvmModel = document.getElementById('rvm-model').parentElement;
+
+        if (e.target.value === 'segmentation') {
+            morphSection.style.display = 'none';
+            rvmModel.style.display = 'none';
+            segSection.style.display = 'block';
+        } else {
+            morphSection.style.display = 'block';
+            rvmModel.style.display = 'block';
+            segSection.style.display = 'none';
+        }
+    });
 });

@@ -116,6 +116,74 @@
                             <option value="mobilenetv3">MobileNetV3 (Faster, recommended)</option>
                             <option value="resnet50">ResNet50 (Higher quality, slower)</option>
                         </select>
+                        
+                        <!-- Background Removal Mode -->
+                        <div style="margin-top: 1rem;">
+                            <label>Background Removal Method</label>
+                            <div style="margin-top: 0.5rem;">
+                                <label style="display: block; margin-bottom: 0.5rem;">
+                                    <input type="radio" name="bg-method" value="rvm" checked>
+                                    RVM Matting (default)
+                                </label>
+                                <label style="display: block;">
+                                    <input type="radio" name="bg-method" value="segmentation">
+                                    Person Segmentation (better for occlusions)
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Morphological Cleanup (RVM only) -->
+                        <div id="morph-cleanup-section" style="margin-top: 1rem;">
+                            <label for="morph-preset">Cleanup Preset</label>
+                            <select id="morph-preset" style="margin-top: 0.25rem; margin-bottom: 0.75rem;">
+                                <option value="none">None (default)</option>
+                                <option value="light">Light Cleanup (3/5/5)</option>
+                                <option value="aggressive">Aggressive Cleanup (5/7/7) ⭐</option>
+                            </select>
+                            
+                            <details style="margin-top: 0.5rem;">
+                                <summary style="cursor: pointer; user-select: none;">Advanced Cleanup Settings</summary>
+                                <div style="margin-top: 0.75rem; padding-left: 0.5rem; border-left: 2px solid #ddd;">
+                                    <div class="param-item" style="margin-bottom: 0.75rem;">
+                                        <label for="rvm-erode">Erosion (removes artifacts): <span id="erode-val">0</span></label>
+                                        <input type="range" id="rvm-erode" min="0" max="10" value="0" step="1">
+                                    </div>
+                                    <div class="param-item" style="margin-bottom: 0.75rem;">
+                                        <label for="rvm-dilate">Dilation (fills holes): <span id="dilate-val">0</span></label>
+                                        <input type="range" id="rvm-dilate" min="0" max="10" value="0" step="1">
+                                    </div>
+                                    <div class="param-item" style="margin-bottom: 0.75rem;">
+                                        <label for="rvm-median">Median Filter (denoise): <span id="median-val">0</span></label>
+                                        <input type="range" id="rvm-median" min="0" max="15" value="0" step="2">
+                                    </div>
+                                    <div class="param-item">
+                                        <label for="rvm-blur">Edge Blur (smoothing): <span id="blur-val">0</span></label>
+                                        <input type="range" id="rvm-blur" min="0" max="10" value="0" step="1">
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+                        
+                        <!-- Segmentation Options -->
+                        <div id="seg-options-section" style="margin-top: 1rem; display: none;">
+                            <label for="seg-model">Segmentation Model</label>
+                            <select id="seg-model" style="margin-top: 0.25rem; margin-bottom: 0.75rem;">
+                                <option value="general">General (default)</option>
+                                <option value="landscape">Portrait/Selfie</option>
+                            </select>
+                            
+                            <div class="param-item" style="margin-bottom: 0.75rem;">
+                                <label for="seg-threshold">Detection Threshold: <span id="threshold-val">0.5</span></label>
+                                <input type="range" id="seg-threshold" min="0" max="1" value="0.5" step="0.05">
+                                <small>Lower = more inclusive</small>
+                            </div>
+                            
+                            <div class="param-item">
+                                <label for="seg-smooth">Mask Smoothing: <span id="smooth-val">5</span></label>
+                                <input type="range" id="seg-smooth" min="0" max="15" value="5" step="1">
+                                <small>Reduces flickering</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

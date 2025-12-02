@@ -80,6 +80,11 @@ uv run python main.py input.mp4 output.mp4 \
 - `--bg-image` - Path to background image file (takes precedence over `--bg-color`)
 - `--rvm-model` - RVM model variant: `mobilenetv3` (faster) or `resnet50` (higher quality)
 - `--rvm-downsample` - Downsample ratio for RVM (default: auto-detect based on resolution)
+- `--use-segmentation` - Use person segmentation instead of RVM (better for handling occlusions)
+- `--seg-model` - Segmentation model: `general` (default) or `landscape` (for portrait videos)
+- `--seg-threshold` - Confidence threshold for person detection (0.0-1.0, default: `0.5`)
+- `--seg-smooth` - Mask smoothing radius in pixels (default: `5`, 0 to disable)
+
 
 #### Video Quality Parameters
 - `--bitrate` - Target video bitrate (default: `5000k`)
@@ -126,13 +131,30 @@ uv run python main.py input.mp4 output.mp4 \
     --remove-background --bg-image path/to/background.jpg
 ```
 
+**Use person segmentation (better for occlusions):**
+```bash
+uv run python main.py input.mp4 output.mp4 --use-segmentation
+```
+
+**Segmentation with custom background:**
+```bash
+uv run python main.py input.mp4 output.mp4 \
+    --use-segmentation --bg-color "#0000FF"
+```
+
+**Segmentation for portrait videos:**
+```bash
+uv run python main.py selfie.mp4 output.mp4 \
+    --use-segmentation --seg-model landscape
+```
+
 **Full processing with all features:**
 ```bash
 uv run python main.py lecture.mp4 final.mp4 \
     --min-silence 1500 \
     --filler-words "um;uh;like" \
     --freeze-duration 5 \
-    --remove-background --bg-color green
+    --use-segmentation --bg-color green
 ```
 
 ## How It Works
@@ -144,8 +166,11 @@ uv run python main.py lecture.mp4 final.mp4 \
    - **Freeze Frames**: Uses FFmpeg to detect static visual scenes
 3. **Merging**: Combines all removal intervals to optimize cuts
 4. **Processing**: Uses FFmpeg to extract and concatenate segments efficiently
-5. **Background Removal** (optional): Applies RVM to remove backgrounds with AI
+5. **Background Removal** (optional): 
+   - **RVM Matting**: AI-powered matting for single subjects
+   - **Person Segmentation**: MediaPipe-based segmentation (better for occlusions, multiple people)
 6. **Encoding**: Applies high-quality encoding settings
+
 
 ## Documentation
 

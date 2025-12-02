@@ -109,6 +109,58 @@ def main():
         default=None,
         help="Downsample ratio for RVM processing (default: auto-detect based on resolution).",
     )
+    
+    # Segmentation options
+    parser.add_argument(
+        "--use-segmentation",
+        action="store_true",
+        help="Use person segmentation instead of RVM matting for background removal. Better for handling occlusions.",
+    )
+    parser.add_argument(
+        "--seg-model",
+        type=str,
+        default="general",
+        choices=["general", "landscape"],
+        help="Segmentation model (default: general). 'general' works for most videos, 'landscape' is optimized for portrait/selfie videos.",
+    )
+    parser.add_argument(
+        "--seg-threshold",
+        type=float,
+        default=0.5,
+        help="Confidence threshold for person detection (0.0-1.0, default: 0.5). Higher = more selective.",
+    )
+    parser.add_argument(
+        "--seg-smooth",
+        type=int,
+        default=5,
+        help="Mask smoothing radius in pixels (default: 5, 0 to disable). Reduces flickering.",
+    )
+    
+    # RVM Morphological cleanup options
+    parser.add_argument(
+        "--rvm-erode",
+        type=int,
+        default=0,
+        help="Erosion kernel size for RVM cleanup (removes background artifacts, default: 0=off).",
+    )
+    parser.add_argument(
+        "--rvm-dilate",
+        type=int,
+        default=0,
+        help="Dilation kernel size for RVM cleanup (fills holes in foreground, default: 0=off).",
+    )
+    parser.add_argument(
+        "--rvm-median",
+        type=int,
+        default=0,
+        help="Median filter size for RVM cleanup (reduces noise, default: 0=off).",
+    )
+    parser.add_argument(
+        "--rvm-blur",
+        type=int,
+        default=0,
+        help="Final blur radius for RVM (soft edges, default: 0=off).",
+    )
 
     args = parser.parse_args()
 
@@ -136,6 +188,14 @@ def main():
         args.bg_image,
         args.rvm_model,
         args.rvm_downsample,
+        args.use_segmentation,
+        args.seg_model,
+        args.seg_threshold,
+        args.seg_smooth,
+        args.rvm_erode,
+        args.rvm_dilate,
+        args.rvm_median,
+        args.rvm_blur,
     )
     logging.info("Done.")
 

@@ -1,0 +1,240 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Auto Video Editor API",
+        "description": "API for automated video editing tasks like silence removal and background replacement.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:5000",
+            "description": "Local Development Server"
+        }
+    ],
+    "paths": {
+        "/api/upload": {
+            "post": {
+                "summary": "Upload a video file",
+                "description": "Upload a video file to be processed. Returns a file ID and filename reference for use in job creation.",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "file": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "description": "The video file to upload"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "File uploaded successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "file_id": {
+                                            "type": "string"
+                                        },
+                                        "filename": {
+                                            "type": "string",
+                                            "description": "The internal filename to use in job creation"
+                                        },
+                                        "original_filename": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input"
+                    }
+                }
+            }
+        },
+        "/api/jobs": {
+            "post": {
+                "summary": "Create a processing job",
+                "description": "Start a video processing job using a previously uploaded file.",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "filename"
+                                ],
+                                "properties": {
+                                    "filename": {
+                                        "type": "string",
+                                        "description": "The 'filename' returned from the upload endpoint."
+                                    },
+                                    "min_silence": {
+                                        "type": "integer",
+                                        "default": 2000,
+                                        "description": "Minimum silence duration in milliseconds."
+                                    },
+                                    "silence_thresh": {
+                                        "type": "integer",
+                                        "default": -63,
+                                        "description": "Silence threshold in dBFS."
+                                    },
+                                    "crossfade": {
+                                        "type": "number",
+                                        "default": 0.2,
+                                        "description": "Crossfade duration in seconds."
+                                    },
+                                    "remove_background": {
+                                        "type": "boolean",
+                                        "default": false,
+                                        "description": "Enable background removal."
+                                    },
+                                    "bg_color": {
+                                        "type": "string",
+                                        "default": "green",
+                                        "description": "Background color if removing background."
+                                    },
+                                    "filler_words": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "List of filler words to remove."
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Job created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "job_id": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/jobs/{job_id}": {
+            "get": {
+                "summary": "Get job status",
+                "parameters": [
+                    {
+                        "name": "job_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job status info",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "job_id": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": [
+                                                "pending",
+                                                "processing",
+                                                "complete",
+                                                "error"
+                                            ]
+                                        },
+                                        "progress": {
+                                            "type": "integer"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "download_url": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Job not found"
+                    }
+                }
+            }
+        },
+        "/api/jobs/{job_id}/download": {
+            "get": {
+                "summary": "Download result",
+                "parameters": [
+                    {
+                        "name": "job_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "delete_after",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "description": "If true, deletes the job and file after successful download."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Video file download",
+                        "content": {
+                            "video/mp4": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

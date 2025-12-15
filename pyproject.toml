@@ -25,6 +25,8 @@ dependencies = [
     "torchaudio>=2.9.1",
     "transformers>=4.57.3",
     "torchvision>=0.24.1",
+    "flask-swagger-ui>=5.21.0",
+    "flask-cors>=6.0.2",
 ]
 
 

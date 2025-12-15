@@ -12,7 +12,15 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from processor import process_video
 
+from flask_cors import CORS
+
 app = Flask(__name__)
+CORS(app)
+from .api import api_bp
+from .swagger import swaggerui_blueprint, SWAGGER_URL
+
+app.register_blueprint(api_bp)
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 # Use absolute paths for upload/output folders
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -25,18 +33,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
 
 # In-memory job tracking
-jobs = {}
-
-class Job:
-    def __init__(self, job_id, filename):
-        self.job_id = job_id
-        self.filename = filename
-        self.status = 'pending'
-        self.progress = 0
-        self.message = 'Waiting to start...'
-        self.created_at = datetime.now()
-        self.output_path = None
-        self.error = None
+from .state import jobs, Job
 
 @app.route('/')
 def index():

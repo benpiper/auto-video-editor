@@ -60,7 +60,7 @@ def detect_silence(audio_path: str, min_silence_len: int = 2000, silence_thresh:
     
     return silence_intervals_sec
 
-def detect_filler_words(audio_path: str, model_size: str = "base", filler_words_list: List[str] = None) -> List[Tuple[float, float]]:
+def detect_filler_words(audio_path: str, model_size: str = "large-v3-turbo", filler_words_list: List[str] = None) -> List[Tuple[float, float]]:
     """
     Detects filler words using Whisper.
     Returns:
@@ -68,7 +68,7 @@ def detect_filler_words(audio_path: str, model_size: str = "base", filler_words_
     """
     return detect_filler_words_whisper(audio_path, model_size, filler_words_list)
 
-def detect_filler_words_whisper(audio_path: str, model_size: str = "base", filler_words_list: List[str] = None) -> List[Tuple[float, float]]:
+def detect_filler_words_whisper(audio_path: str, model_size: str = "large-v3-turbo", filler_words_list: List[str] = None) -> List[Tuple[float, float]]:
     """
     Detects filler words using standard Whisper.
     Returns:

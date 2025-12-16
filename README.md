@@ -53,6 +53,32 @@ uv run web_app/app.py
 ```
 Then open `http://localhost:5000` in your browser.
 
+### REST API
+
+The application provides a full REST API for automation.
+
+**Documentation**: `http://localhost:5000/api/docs` (Swagger UI)
+
+**Endpoints**:
+- `POST /api/upload`: Upload video file (returns `filename` for next step)
+- `POST /api/jobs`: Start processing (accepts JSON params)
+- `GET /api/jobs/<job_id>`: Check status/progress
+- `GET /api/jobs/<job_id>/download`: Download result (optional `?delete_after=true`)
+
+**Example Workflow**:
+```bash
+# 1. Upload
+curl -X POST -F "file=@input.mp4" http://localhost:5000/api/upload
+
+# 2. Process (using filename from step 1)
+curl -X POST http://localhost:5000/api/jobs \
+     -H "Content-Type: application/json" \
+     -d '{"filename": "uuid_input.mp4", "min_silence": 1000}'
+
+# 3. Download (when status is "complete")
+curl -O -J http://localhost:5000/api/jobs/<job_id>/download
+```
+
 ### Command Line
 
 ```bash

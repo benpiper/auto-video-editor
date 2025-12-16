@@ -640,7 +640,7 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
             else:
                 logging.info("The video is already optimized. Exiting without re-encoding.")
                 video.close()
-                return
+                return 'skipped'
 
         logging.info(f"Cutting video. Keeping {len(keep_intervals)} segments.")
         
@@ -776,6 +776,8 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
                 logging.warning("Keeping video without background removal")
 
         
+        return True
+
     except KeyboardInterrupt:
         logging.warning("Processing interrupted by user (Ctrl+C)")
         # Clean up incomplete output file
@@ -798,6 +800,9 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
                 os.remove(output_path)
             except Exception as cleanup_error:
                 logging.error(f"Failed to remove incomplete file: {cleanup_error}")
+        return False
+        
+
                 
     finally:
         # Cleanup video object if it exists

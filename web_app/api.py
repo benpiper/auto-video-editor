@@ -27,7 +27,7 @@ def process_video_async(job_id, input_path, output_path, params):
             job.message = message
 
         # Extract parameters with defaults
-        process_video(
+        result = process_video(
             input_path,
             output_path,
             params.get('min_silence', 2000),
@@ -58,10 +58,20 @@ def process_video_async(job_id, input_path, output_path, params):
             update_progress
         )
         
-        job.status = 'complete'
-        job.progress = 100
-        job.message = 'Processing complete!'
-        job.output_path = output_path
+        if result == 'skipped':
+             job.status = 'skipped'
+             job.progress = 100
+             job.message = 'Video already optimized - no changes made.'
+             job.output_path = None
+        elif result is False:
+             job.status = 'error'
+             job.error = 'Processing failed (check server logs)'
+             job.message = 'Processing failed'
+        else:
+            job.status = 'complete'
+            job.progress = 100
+            job.message = 'Processing complete!'
+            job.output_path = output_path
         
     except Exception as e:
         job.status = 'error'

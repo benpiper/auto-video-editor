@@ -58,20 +58,27 @@ def process_video_async(job_id, input_path, output_path, params):
             update_progress
         )
         
-        if result == 'skipped':
+        # Helper to extract transcript
+        transcript_text = result.get('transcript') if isinstance(result, dict) else None
+        
+        status = result.get('status') if isinstance(result, dict) else None
+        
+        if status == 'skipped':
              job.status = 'skipped'
              job.progress = 100
              job.message = 'Video already optimized - no changes made.'
              job.output_path = None
-        elif result is False:
+             job.transcript = transcript_text
+        elif status == 'error' or result is False:
              job.status = 'error'
-             job.error = 'Processing failed (check server logs)'
-             job.message = 'Processing failed'
+             job.error = result.get('error', 'Processing failed') if isinstance(result, dict) else 'Processing failed'
+             job.message = job.error
         else:
             job.status = 'complete'
             job.progress = 100
             job.message = 'Processing complete!'
             job.output_path = output_path
+            job.transcript = transcript_text
         
     except Exception as e:
         job.status = 'error'

@@ -64,7 +64,7 @@ def detect_filler_words(audio_path: str, model_size: str = "large-v3-turbo", fil
     """
     Detects filler words using Whisper.
     Returns:
-        List of (start, end) tuples in seconds.
+        Tuple of (List of (start, end) tuples, transcript string).
     """
     return detect_filler_words_whisper(audio_path, model_size, filler_words_list)
 
@@ -72,7 +72,7 @@ def detect_filler_words_whisper(audio_path: str, model_size: str = "large-v3-tur
     """
     Detects filler words using standard Whisper.
     Returns:
-        List of (start, end) tuples in seconds.
+        Tuple of (List of (start, end) tuples, transcript string).
     """
     logging.info(f"Loading Whisper model ({model_size})...")
     model = whisper.load_model(model_size)
@@ -130,7 +130,9 @@ def detect_filler_words_whisper(audio_path: str, model_size: str = "large-v3-tur
             f.write(transcript_text)
         logging.info(f"Transcript saved to: {transcript_path}")
     
-    return filler_intervals
+        logging.info(f"Transcript saved to: {transcript_path}")
+    
+    return filler_intervals, transcript_text
 
 def detect_freeze_frames(video_path: str, min_duration: float = 5.0, noise_tolerance: float = 0.001) -> List[Tuple[float, float]]:
     """
@@ -555,7 +557,10 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
     working_video_path = transpose_video_if_needed(input_path, rotation)
     transposed = (working_video_path != input_path)
 
+    transposed = (working_video_path != input_path)
+
     temp_audio_path = "temp_audio.wav"
+    transcript_text = None
     
     if progress_callback:
         progress_callback(0, "Starting processing...")
@@ -580,7 +585,7 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
         if has_audio:
             if progress_callback:
                 progress_callback(20, "Detecting filler words (this may take a while)...")
-            filler_intervals = detect_filler_words(temp_audio_path, filler_words_list=filler_words)
+            filler_intervals, transcript_text = detect_filler_words(temp_audio_path, filler_words_list=filler_words)
         else:
             logging.info("Skipping filler word detection (no audio)")
         
@@ -640,7 +645,7 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
             else:
                 logging.info("The video is already optimized. Exiting without re-encoding.")
                 video.close()
-                return 'skipped'
+                return {'status': 'skipped', 'transcript': transcript_text}
 
         logging.info(f"Cutting video. Keeping {len(keep_intervals)} segments.")
         
@@ -776,7 +781,7 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
                 logging.warning("Keeping video without background removal")
 
         
-        return True
+        return {'status': 'complete', 'output_path': output_path, 'transcript': transcript_text}
 
     except KeyboardInterrupt:
         logging.warning("Processing interrupted by user (Ctrl+C)")
@@ -800,7 +805,11 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
                 os.remove(output_path)
             except Exception as cleanup_error:
                 logging.error(f"Failed to remove incomplete file: {cleanup_error}")
-        return False
+            try:
+                os.remove(output_path)
+            except Exception as cleanup_error:
+                logging.error(f"Failed to remove incomplete file: {cleanup_error}")
+        return {'status': 'error', 'error': str(e)}
         
 
                 

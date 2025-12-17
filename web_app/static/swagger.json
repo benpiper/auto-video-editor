@@ -175,6 +175,7 @@
                                                 "pending",
                                                 "processing",
                                                 "complete",
+                                                "skipped",
                                                 "error"
                                             ]
                                         },
@@ -185,6 +186,9 @@
                                             "type": "string"
                                         },
                                         "download_url": {
+                                            "type": "string"
+                                        },
+                                        "transcript": {
                                             "type": "string"
                                         }
                                     }

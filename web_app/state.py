@@ -13,6 +13,7 @@ class Job:
         self.created_at = datetime.now()
         self.output_path = None
         self.error = None
+        self.transcript = None
         
     def to_dict(self):
         return {
@@ -23,5 +24,6 @@ class Job:
             'message': self.message,
             'created_at': self.created_at.isoformat(),
             'output_path': self.output_path,
-            'error': self.error
+            'error': self.error,
+            'transcript': self.transcript
         }

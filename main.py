@@ -22,6 +22,18 @@ def main():
         help="Silence threshold in dBFS (default: -63).",
     )
     parser.add_argument(
+        "--remove-silence",
+        action="store_true",
+        default=True,
+        help="Enable silence removal (default: True).",
+    )
+    parser.add_argument(
+        "--no-silence",
+        action="store_false",
+        dest="remove_silence",
+        help="Disable silence removal.",
+    )
+    parser.add_argument(
         "--crossfade",
         type=float,
         default=0.2,
@@ -196,6 +208,8 @@ def main():
         args.rvm_dilate,
         args.rvm_median,
         args.rvm_blur,
+        progress_callback=None,
+        remove_silence=args.remove_silence,
     )
     logging.info("Done.")
 

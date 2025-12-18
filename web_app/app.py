@@ -16,11 +16,11 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
-from .api import api_bp
-from .swagger import swaggerui_blueprint, SWAGGER_URL
+import api
+import swagger
 
-app.register_blueprint(api_bp)
-app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+app.register_blueprint(api.api_bp)
+app.register_blueprint(swagger.swaggerui_blueprint, url_prefix=swagger.SWAGGER_URL)
 
 # Use absolute paths for upload/output folders
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -33,7 +33,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
 
 # In-memory job tracking
-from .state import jobs, Job
+from state import jobs, Job
 
 @app.route('/')
 def index():
@@ -60,6 +60,7 @@ def upload_video():
     params = {
         'min_silence': int(request.form.get('min_silence', 2000)),
         'silence_thresh': int(request.form.get('silence_thresh', -63)),
+        'remove_silence': request.form.get('remove_silence') == 'true',
         'crossfade': float(request.form.get('crossfade', 0.2)),
         'bitrate': request.form.get('bitrate', '5000k'),
         'preset': request.form.get('preset', 'medium'),
@@ -154,7 +155,8 @@ def process_video_async(job_id, input_path, output_path, params):
             params['rvm_dilate'],  # rvm_dilate
             params['rvm_median'],  # rvm_median
             params['rvm_blur'],  # rvm_blur
-            update_progress # progress_callback
+            update_progress, # progress_callback
+            params['remove_silence'] # remove_silence
         )
         
         job.status = 'complete'

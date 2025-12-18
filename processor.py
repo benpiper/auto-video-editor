@@ -543,7 +543,7 @@ def transpose_video_if_needed(input_path: str, rotation: int) -> str:
             os.remove(temp_path)
         return input_path
 
-def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False, no_crossfade: bool = False, filler_words: List[str] = None, freeze_duration: float = None, freeze_noise: float = 0.001, remove_background: bool = False, bg_color: str = "green", bg_image: Optional[str] = None, rvm_model: str = "mobilenetv3", rvm_downsample: Optional[float] = None, use_segmentation: bool = False, seg_model: str = "general", seg_threshold: float = 0.5, seg_smooth: int = 5, rvm_erode: int = 0, rvm_dilate: int = 0, rvm_median: int = 0, rvm_blur: int = 0, progress_callback: Optional[Callable[[int, str], None]] = None):
+def process_video(input_path: str, output_path: str, min_silence_len: int = 2000, silence_thresh: int = -63, crossfade_duration: float = 0.2, bitrate: str = "5000k", crf: int = 18, preset: str = "medium", use_crf: bool = False, use_gpu_encoding: bool = False, no_crossfade: bool = False, filler_words: List[str] = None, freeze_duration: float = None, freeze_noise: float = 0.001, remove_background: bool = False, bg_color: str = "green", bg_image: Optional[str] = None, rvm_model: str = "mobilenetv3", rvm_downsample: Optional[float] = None, use_segmentation: bool = False, seg_model: str = "general", seg_threshold: float = 0.5, seg_smooth: int = 5, rvm_erode: int = 0, rvm_dilate: int = 0, rvm_median: int = 0, rvm_blur: int = 0, progress_callback: Optional[Callable[[int, str], None]] = None, remove_silence: bool = True):
     if not os.path.exists(input_path):
         logging.error(f"Input file not found: {input_path}")
         return
@@ -571,12 +571,15 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
             progress_callback(5, "Extracting audio...")
         has_audio = extract_audio(working_video_path, temp_audio_path)
         
-        # 2. Detect Silence (only if audio exists)
+        # 2. Detect Silence (only if audio exists and silence removal is enabled)
         silence_intervals = []
         if has_audio:
-            if progress_callback:
-                progress_callback(10, "Detecting silence...")
-            silence_intervals = detect_silence(temp_audio_path, min_silence_len, silence_thresh)
+            if remove_silence:
+                if progress_callback:
+                    progress_callback(10, "Detecting silence...")
+                silence_intervals = detect_silence(temp_audio_path, min_silence_len, silence_thresh)
+            else:
+                logging.info("Skipping silence detection (disabled by user)")
         else:
             logging.info("Skipping silence detection (no audio)")
         

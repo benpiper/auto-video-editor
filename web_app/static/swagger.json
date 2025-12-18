@@ -93,6 +93,11 @@
                                         "default": -63,
                                         "description": "Silence threshold in dBFS."
                                     },
+                                    "remove_silence": {
+                                        "type": "boolean",
+                                        "default": true,
+                                        "description": "Enable silence removal."
+                                    },
                                     "crossfade": {
                                         "type": "number",
                                         "default": 0.2,

@@ -5,7 +5,7 @@ import threading
 import sys
 from werkzeug.utils import secure_filename
 from datetime import datetime
-from .state import jobs, Job
+from state import jobs, Job
 
 # Import processor
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -55,7 +55,8 @@ def process_video_async(job_id, input_path, output_path, params):
             params.get('rvm_dilate', 0),
             params.get('rvm_median', 0),
             params.get('rvm_blur', 0),
-            update_progress
+            update_progress,
+            params.get('remove_silence', True)
         )
         
         # Helper to extract transcript
@@ -164,6 +165,7 @@ def create_job():
     params = {
         'min_silence': data.get('min_silence', 2000),
         'silence_thresh': data.get('silence_thresh', -63),
+        'remove_silence': data.get('remove_silence', True),
         'crossfade': data.get('crossfade', 0.2),
         'bitrate': data.get('bitrate', '5000k'),
         'crf': data.get('crf', 18),

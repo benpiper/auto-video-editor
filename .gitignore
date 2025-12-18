@@ -5,4 +5,8 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-temp*
+# Temporary files
+temp_*.wav
+temp_*.txt
+temp_*.mp4
+temp/

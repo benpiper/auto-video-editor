@@ -67,6 +67,7 @@ processBtn.addEventListener('click', async () => {
     formData.append('video', selectedFile);
     formData.append('min_silence', document.getElementById('min-silence').value);
     formData.append('silence_thresh', document.getElementById('silence-thresh').value);
+    formData.append('remove_silence', document.getElementById('remove-silence').checked);
     formData.append('filler_words', document.getElementById('filler-words').value);
     formData.append('remove_freeze', document.getElementById('remove-freeze').checked);
     formData.append('freeze_duration', document.getElementById('freeze-duration').value);
@@ -201,6 +202,16 @@ document.getElementById('remove-background').addEventListener('change', (e) => {
     } else {
         bgOptions.style.display = 'none';
         rvmAdvanced.style.display = 'none';
+    }
+});
+
+// Silence detection UI toggle
+document.getElementById('remove-silence').addEventListener('change', (e) => {
+    const silenceOptions = document.getElementById('silence-options');
+    if (e.target.checked) {
+        silenceOptions.style.display = 'flex';
+    } else {
+        silenceOptions.style.display = 'none';
     }
 });
 

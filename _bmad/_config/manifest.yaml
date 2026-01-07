@@ -1,0 +1,10 @@
+installation:
+  version: 6.0.0-alpha.22
+  installDate: 2026-01-05T18:01:21.291Z
+  lastUpdated: 2026-01-05T18:01:21.291Z
+modules:
+  - core
+  - bmm
+  - cis
+ides:
+  - antigravity

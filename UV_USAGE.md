@@ -10,7 +10,7 @@ The most reliable way to run AutoCut AI is using `uv run`. This ensures all depe
 
 ```bash
 # Start the Web App
-uv run web_app/app.py
+uv run web_app/run.py
 
 # Run the CLI
 uv run python main.py input_video.mp4 output_video.mp4

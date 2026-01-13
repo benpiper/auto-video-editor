@@ -17,9 +17,9 @@ from flask_sse import sse
 from core.redis_client import RedisManager
 from core.sse_relay import TelemetryRelay, RedisStreamRelay
 from core.db import init_db
-from .api import api_bp
-from .swagger import swaggerui_blueprint, SWAGGER_URL
-from .state import jobs, Job
+from web_app.api import api_bp
+from web_app.swagger import swaggerui_blueprint, SWAGGER_URL
+from web_app.state import jobs, Job
 
 # Initialize Database
 init_db()
@@ -189,35 +189,35 @@ def process_video_async(job_id, input_path, output_path, params):
         process_video(
             input_path,
             output_path,
-            params["min_silence"],
-            params["silence_thresh"],
-            0.2,  # crossfade_duration
-            "5000k",  # bitrate (auto-detected)
-            18,  # crf
-            "medium",  # preset
-            False,  # use_crf
-            False,  # use_gpu_encoding
-            True,  # no_crossfade (FORCE TRUE)
-            params["filler_words"],  # filler_words
-            params["freeze_duration"]
+            min_silence_len=params["min_silence"],
+            silence_thresh=params["silence_thresh"],
+            crossfade_duration=0.2,
+            bitrate="5000k",
+            crf=18,
+            preset="medium",
+            use_crf=False,
+            use_gpu_encoding=False,
+            no_crossfade=True,  # FORCE TRUE
+            filler_words=params["filler_words"],
+            freeze_duration=params["freeze_duration"]
             if params["remove_freeze"]
-            else None,  # freeze_duration
-            0.001,  # freeze_noise
-            params["remove_background"],  # remove_background
-            params["bg_color"],  # bg_color
-            params["bg_image"],  # bg_image
-            params["rvm_model"],  # rvm_model
-            None,  # rvm_downsample (auto)
-            params["use_segmentation"],  # use_segmentation
-            params["seg_model"],  # seg_model
-            params["seg_threshold"],  # seg_threshold
-            params["seg_smooth"],  # seg_smooth
-            params["rvm_erode"],  # rvm_erode
-            params["rvm_dilate"],  # rvm_dilate
-            params["rvm_median"],  # rvm_median
-            params["rvm_blur"],  # rvm_blur
-            params.get("render_preset", "speed"),  # render_preset
-            update_progress,  # progress_callback
+            else None,
+            freeze_noise=0.001,
+            remove_background=params["remove_background"],
+            bg_color=params["bg_color"],
+            bg_image=params["bg_image"],
+            rvm_model=params["rvm_model"],
+            rvm_downsample=None,
+            use_segmentation=params["use_segmentation"],
+            seg_model=params["seg_model"],
+            seg_threshold=params["seg_threshold"],
+            seg_smooth=params["seg_smooth"],
+            rvm_erode=params["rvm_erode"],
+            rvm_dilate=params["rvm_dilate"],
+            rvm_median=params["rvm_median"],
+            rvm_blur=params["rvm_blur"],
+            render_preset=params.get("render_preset", "speed"),
+            progress_callback=update_progress,
         )
 
         job.status = "complete"

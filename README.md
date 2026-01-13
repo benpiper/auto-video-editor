@@ -65,7 +65,7 @@ AutoCut AI can be configured via environment variables. Create a `.env` file in 
 
 Start the web application:
 ```bash
-uv run web_app/app.py
+uv run web_app/run.py
 ```
 Visit `http://localhost:5000` to:
 1.  **Ingest**: Upload your raw video file.

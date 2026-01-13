@@ -1,19 +1,22 @@
-# UV Project Setup Guide
+# UV Project Setup Guide 🛠️
 
-This project is now set up with UV, a fast Python package manager.
+AutoCut AI uses **UV** for high-performance dependency management and reproducible environments.
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Running the application
 
-```bash
-# Run with UV (recommended)
-uv run python main.py input_video.mp4 output_video.mp4
+The most reliable way to run AutoCut AI is using `uv run`. This ensures all dependencies are correctly loaded in an isolated environment.
 
-# Or activate the virtual environment
-source .venv/bin/activate
-python main.py input_video.mp4 output_video.mp4
+```bash
+# Start the Web App
+uv run web_app/app.py
+
+# Run the CLI
+uv run python main.py input_video.mp4 output_video.mp4
 ```
+
+*Note: The first time you run a command, UV will automatically create a `.venv` and install all required packages.*
 
 ### Common UV Commands
 
@@ -21,47 +24,43 @@ python main.py input_video.mp4 output_video.mp4
 # Add a new dependency
 uv add package-name
 
-# Remove a dependency
-uv remove package-name
-
-# Update dependencies
+# Sync environment with pyproject.toml
 uv sync
 
 # Run a Python script
 uv run python script.py
 
-# Run a command in the virtual environment
-uv run <command>
-
-# Create a new virtual environment
-uv venv
+# Access the virtual environment directly
+source .venv/bin/activate
 ```
 
-## Installed Dependencies
+## 📦 Core Dependencies
 
-The following packages are installed:
-- **moviepy** (<2.0) - Video editing library
-- **openai-whisper** - Speech recognition for filler word detection
-- **pydub** - Audio processing for silence detection
-- **torch** - PyTorch for Whisper model
-- **numpy** - Numerical computing
+AutoCut AI relies on the following heavy-duty libraries:
+- **flask** & **flask-sse**: Web server and real-time event broadcasting.
+- **peewee**: SQLite ORM for project and cut management.
+- **redis**: Powering the SSE stream and progress telemetry.
+- **openai-whisper**: AI transcription for filler word detection.
+- **moviepy**: High-fidelity clip concatenation and crossfades.
+- **ffmpegcv**: Hardware-accelerated frame reading and writing.
+- **torch**: Deep learning backend for Whisper and RVM.
+- **pydub**: Waveform analysis for silence detection.
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 auto-video-editor/
-├── .venv/              # Virtual environment (managed by UV)
-├── main.py             # CLI entry point
-├── processor.py        # Core video processing logic
-├── create_test_video.py # Test video generator
-├── pyproject.toml      # Project configuration & dependencies
-├── uv.lock            # Locked dependency versions
-└── README.md          # Project documentation
+├── .venv/              # Isolation layer (managed by UV)
+├── main.py             # Scriptable CLI entry point
+├── processor.py        # Core processing & AI logic
+├── web_app/            # Flask-based portal & dashboard
+├── core/               # Shared utilities (DB, Redis, Telemetry)
+├── pyproject.toml      # Manifest & Dependency constraints
+└── uv.lock            # Deterministic lockfile
 ```
 
-## Notes
+## 💡 Notes
 
-- UV automatically manages the virtual environment in `.venv/`
-- Dependencies are locked in `uv.lock` for reproducible builds
-- Python 3.10+ is required (specified in `pyproject.toml`)
-- UV is much faster than pip for installing packages
+- **Version Lock**: Always use `uv sync` if you see errors after a fresh git pull.
+- **Python**: 3.10+ is required as defined in `pyproject.toml`.
+- **Speed**: UV is significantly faster than `pip` and handles complex torch/cuda versioning better.

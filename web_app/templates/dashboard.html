@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoCut AI - Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <header style="display: flex; align-items: center; gap: 1.25rem; margin-bottom: 2.5rem;">
+            <img src="/static/img/logo.png" alt="AutoCut AI"
+                style="width: 56px; height: 56px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.4);">
+            <div>
+                <h1 style="margin: 0; font-size: 2rem; letter-spacing: -0.5px;">AutoCut AI</h1>
+                <p style="margin: 0; color: var(--text-dim); font-size: 0.95rem;">Intelligent Video Content Management
+                </p>
+            </div>
+        </header>
+
+        <div class="action-bar">
+            <h2>Your Projects</h2>
+            <a href="/" class="btn-primary btn-icon" style="width: auto; text-decoration: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                New Project
+            </a>
+        </div>
+
+        <div id="project-list" class="project-grid">
+            <!-- Projects will be loaded here -->
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Detection Review Modal -->
+        <div id="review-modal" class="modal">
+            <div class="modal-content">
+                <header class="modal-header">
+                    <h2>Review Removal Candidates</h2>
+                    <button class="close-btn" onclick="closeModal()">&times;</button>
+                </header>
+                <div class="modal-body">
+                    <p id="modal-project-name" style="font-weight: 600; margin-bottom: 1rem; color: var(--text-dim);">
+                    </p>
+                    <div id="candidates-list" class="candidates-container">
+                        <!-- Cuts will be loaded here -->
+                    </div>
+
+                    <div id="preview-section" class="preview-section" style="display: none;">
+                        <h3>Edited Preview (30s Sandbox)</h3>
+                        <div id="preview-progress" class="preview-progress-container" style="display: none;">
+                            <div class="preview-message">Initializing sandbox...</div>
+                            <div class="preview-progress-bar">
+                                <div id="preview-fill" class="preview-progress-fill"></div>
+                            </div>
+                        </div>
+                        <div id="preview-player" class="preview-player-container" style="display: none;">
+                            <video id="preview-video-element" class="preview-video" controls>
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                    </div>
+
+                    <!-- Render Section (Story 5.3) -->
+                    <div id="render-section" class="preview-section"
+                        style="display: none; border-color: var(--primary);">
+                        <h3>Final Master Render</h3>
+                        <div id="render-preset-container" style="margin-bottom: 1rem;">
+                            <label for="render-preset"
+                                style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-dim);">Choose
+                                Rendering Engine:</label>
+                            <select id="render-preset" class="btn-secondary"
+                                style="width: 100%; padding: 0.6rem; background: rgba(255,255,255,0.03);">
+                                <option value="speed">🚀 Speed Mode (NVENC / UltraFast)</option>
+                                <option value="quality">✨ Quality Mode (libx264 / Cinematic)</option>
+                            </select>
+                        </div>
+                        <div id="render-progress" class="preview-progress-container" style="display: none;">
+                            <div id="render-message" class="preview-message">Initializing master render...</div>
+                            <div class="preview-progress-bar">
+                                <div id="render-fill" class="preview-progress-fill"></div>
+                            </div>
+                        </div>
+                        <div id="render-complete"
+                            style="display: none; padding: 1rem; background: rgba(46, 204, 113, 0.1); border: 1px dashed var(--success); border-radius: 8px; text-align: center;">
+                            <p style="color: var(--success); margin-bottom: 0.8rem;">🎉 Render Completed Successfully!
+                            </p>
+                            <a id="download-final-btn" href="#" class="btn-primary"
+                                style="background: var(--success); display: inline-block; width: auto; color: white; text-decoration: none;">Download
+                                Final Video</a>
+                        </div>
+                    </div>
+                </div>
+                <footer class="modal-footer">
+                    <button class="btn-secondary" onclick="closeModal()">Close</button>
+                    <button id="preview-btn" class="btn-primary" style="background: var(--primary); color: white;"
+                        onclick="startPreview()">Generate Preview</button>
+                    <button id="render-btn" class="btn-primary" onclick="startRender()">Start Full Render</button>
+                </footer>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2026 Auto Video Editor | Powered by AI & FFmpeg</p>
+        </footer>
+    </div>
+
+    <script>
+        async function loadProjects() {
+            const container = document.getElementById('project-list');
+            try {
+                const response = await fetch('/api/projects');
+                const projects = await response.json();
+
+                if (projects.length === 0) {
+                    container.innerHTML = `
+                        <div class="no-projects" style="grid-column: 1 / -1;">
+                            <h3>No projects found</h3>
+                            <p>Get started by creating your first video project.</p>
+                            <a href="/" class="btn-primary" style="display: inline-block; width: auto; margin-top: 1.5rem; text-decoration: none;">Start Ingest</a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = projects.map(p => {
+                    const meta = p.metadata || {};
+                    const resolution = meta.width ? `${meta.width}x${meta.height}` : 'Unknown';
+                    const duration = meta.duration ? `${Math.round(meta.duration)}s` : '0';
+                    const progress = p.progress || 0;
+
+                    return `
+                        <div class="project-card" data-project-id="${p.id}">
+                            <div class="project-inner">
+                                <div class="project-header">
+                                    <div class="project-name">${p.name}</div>
+                                    <div class="project-path">${p.input_path}</div>
+                                </div>
+                                <div class="project-meta">
+                                    <div class="meta-item">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                                        ${resolution}
+                                    </div>
+                                    <div class="meta-item">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                        ${duration}s
+                                    </div>
+                                </div>
+                                
+                                <div class="project-progress">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: ${progress}%"></div>
+                                    </div>
+                                    <div class="project-message"></div>
+                                </div>
+
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                                    <span class="project-status status-${p.status.toLowerCase()}">${p.status}</span>
+                                    <div class="project-actions" style="display: flex; gap: 0.5rem;">
+                                        ${p.status === 'ingested' ? `
+                                            <button onclick="startDetection('${p.id}', event)" class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; width: auto;">Detect</button>
+                                        ` : ''}
+                                        ${(p.status === 'ready' || p.status === 'complete' || p.status === 'rendering') ? `
+                                            <button onclick="reviewCuts('${p.id}', event)" class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; width: auto; background: #22d3ee;">Review</button>
+                                        ` : ''}
+                                        ${(p.status === 'complete' || meta.render_status === 'complete') ? `
+                                            <a href="/api/projects/${p.id}/final/download" class="btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; width: auto; background: #10b981; text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                                Master
+                                            </a>
+                                        ` : ''}
+                                        <button onclick="deleteProject('${p.id}', event)" class="btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; width: auto; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171;">&times;</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Failed to load projects:', error);
+                container.innerHTML = `
+                    <div class="no-projects" style="grid-column: 1 / -1; border-color: var(--error);">
+                        <h3 style="color: var(--error);">Error loading projects</h3>
+                        <p>Could not connect to the database. Is the server running?</p>
+                    </div>
+                `;
+            }
+        }
+
+        let currentProjectId = null;
+
+        async function startDetection(projectId, event) {
+            if (event) event.stopPropagation();
+            try {
+                const response = await fetch(`/api/projects/${projectId}/detect`, { method: 'POST' });
+                const result = await response.json();
+                if (response.ok) {
+                    loadProjects(); // Refresh UI status
+                } else {
+                    alert('Detection failed: ' + result.error);
+                }
+            } catch (err) {
+                alert('Connection error');
+            }
+        }
+
+        async function reviewCuts(projectId, event) {
+            if (event) event.stopPropagation();
+            currentProjectId = projectId;
+            const modal = document.getElementById('review-modal');
+            const list = document.getElementById('candidates-list');
+            list.innerHTML = '<div class="spinner"></div>';
+            modal.style.display = 'block';
+
+            // Reset preview section
+            document.getElementById('preview-section').style.display = 'none';
+            document.getElementById('preview-progress').style.display = 'none';
+            document.getElementById('preview-player').style.display = 'none';
+            document.getElementById('preview-video-element').src = '';
+
+            // Reset render section
+            document.getElementById('render-section').style.display = 'none';
+            document.getElementById('render-progress').style.display = 'none';
+            document.getElementById('render-complete').style.display = 'none';
+            const renderBtn = document.getElementById('render-btn');
+            renderBtn.disabled = false;
+            renderBtn.textContent = 'Start Full Render';
+
+            try {
+                const response = await fetch(`/api/projects/${projectId}/cuts`);
+                const cuts = await response.json();
+
+                if (cuts.length === 0) {
+                    list.innerHTML = '<p>No candidates found. Try running detection first or check threshold.</p>';
+                    return;
+                }
+
+                list.innerHTML = cuts.map(c => `
+                    <div class="candidate-item">
+                        <div class="candidate-info">
+                            <span class="candidate-type type-${c.type}">${c.type}</span>
+                            <span class="candidate-time">${c.start_time.toFixed(2)}s - ${c.end_time.toFixed(2)}s</span>
+                        </div>
+                        <input type="checkbox" class="candidate-checkbox" ${c.ignored ? '' : 'checked'} 
+                               onchange="toggleCut('${c.id}', !this.checked)">
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                list.innerHTML = '<p style="color: var(--error)">Error loading candidates</p>';
+            }
+        }
+
+        async function toggleCut(cutId, ignored) {
+            try {
+                await fetch(`/api/cuts/${cutId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ignored })
+                });
+            } catch (err) {
+                console.error('Failed to update cut:', err);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('review-modal').style.display = 'none';
+        }
+
+        async function deleteProject(projectId, event) {
+            if (event) event.stopPropagation();
+            if (!confirm('Are you sure you want to delete this project? This cannot be undone.')) return;
+
+            try {
+                const response = await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    loadProjects();
+                }
+            } catch (err) {
+                console.error('Delete failed:', err);
+            }
+        }
+
+        async function startPreview() {
+            if (!currentProjectId) return;
+            const btn = document.getElementById('preview-btn');
+            const section = document.getElementById('preview-section');
+            const progress = document.getElementById('preview-progress');
+            const player = document.getElementById('preview-player');
+
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+            section.style.display = 'block';
+            progress.style.display = 'block';
+            player.style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/projects/${currentProjectId}/preview`, { method: 'POST' });
+                if (!response.ok) {
+                    const result = await response.json();
+                    alert('Preview initiation failed: ' + result.error);
+                    btn.disabled = false;
+                    btn.textContent = 'Generate Preview';
+                }
+            } catch (err) {
+                alert('Connection error');
+                btn.disabled = false;
+                btn.textContent = 'Generate Preview';
+            }
+        }
+
+        function displayPreview(projectId) {
+            const playerContainer = document.getElementById('preview-player');
+            const video = document.getElementById('preview-video-element');
+            const progress = document.getElementById('preview-progress');
+            const btn = document.getElementById('preview-btn');
+
+            progress.style.display = 'none';
+            playerContainer.style.display = 'block';
+
+            // Bypass browser cache with timestamp
+            video.src = `/api/projects/${projectId}/preview/stream?t=${Date.now()}`;
+            video.load();
+            video.play().catch(e => console.log("Auto-play prevented"));
+
+            btn.disabled = false;
+            btn.textContent = 'Update Preview';
+        }
+
+        async function startRender() {
+            if (!currentProjectId) return;
+            const btn = document.getElementById('render-btn');
+            const section = document.getElementById('render-section');
+            const progress = document.getElementById('render-progress');
+            const result = document.getElementById('render-complete');
+            const preset = document.getElementById('render-preset').value;
+
+            btn.disabled = true;
+            btn.textContent = 'Rendering...';
+            section.style.display = 'block';
+            progress.style.display = 'block';
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/projects/${currentProjectId}/render`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ preset })
+                });
+                if (!response.ok) {
+                    const error = await response.json();
+                    alert('Render failed to start: ' + error.error);
+                    btn.disabled = false;
+                    btn.textContent = 'Start Full Render';
+                }
+            } catch (err) {
+                alert('Connection error');
+                btn.disabled = false;
+                btn.textContent = 'Start Full Render';
+            }
+        }
+
+        // SSE Setup for Real-time Progress
+        function setupSSE() {
+            const source = new EventSource("/sse");
+
+            source.addEventListener('progress', (event) => {
+                const data = JSON.parse(event.data);
+                const card = document.querySelector(`[data-project-id="${data.project_id}"]`);
+
+                if (card) {
+                    // Update progress bar
+                    if (data.progress !== undefined) {
+                        const progressFill = card.querySelector('.progress-fill');
+                        if (progressFill) {
+                            progressFill.style.width = `${data.progress}%`;
+                        }
+                    }
+
+                    // Update status badge
+                    if (data.status) {
+                        const statusBadge = card.querySelector('.project-status');
+                        if (statusBadge) {
+                            statusBadge.textContent = data.status;
+                            statusBadge.className = `project-status status-${data.status.toLowerCase()}`;
+                        }
+                    }
+
+                    // Update detail message
+                    if (data.message) {
+                        const messageEl = card.querySelector('.project-message');
+                        if (messageEl) {
+                            messageEl.textContent = data.message;
+                        }
+                    }
+                }
+            });
+
+            source.addEventListener('preview', (event) => {
+                const data = JSON.parse(event.data);
+                if (data.project_id !== currentProjectId) return;
+
+                const fill = document.getElementById('preview-fill');
+                const msg = document.querySelector('#preview-progress .preview-message');
+
+                if (fill && data.progress !== undefined) {
+                    fill.style.width = `${data.progress}%`;
+                }
+
+                if (msg && data.message) {
+                    msg.textContent = data.message;
+                }
+
+                if (data.progress === 100) {
+                    displayPreview(data.project_id);
+                }
+            });
+
+            source.addEventListener('render', (event) => {
+                const data = JSON.parse(event.data);
+                if (data.project_id !== currentProjectId) {
+                    // Background notification if not currently viewing this project's modal
+                    if (data.progress === 100) {
+                        notifyUser("Render Complete!", `Your project is ready for download.`);
+                        loadProjects();
+                    }
+                    return;
+                }
+
+                const fill = document.getElementById('render-fill');
+                const msg = document.getElementById('render-message');
+                const btn = document.getElementById('render-btn');
+
+                if (fill && data.progress !== undefined) {
+                    fill.style.width = `${data.progress}%`;
+                }
+
+                if (msg && data.message) {
+                    msg.textContent = data.message;
+                }
+
+                if (data.progress === 100) {
+                    document.getElementById('render-progress').style.display = 'none';
+                    document.getElementById('render-complete').style.display = 'block';
+                    document.getElementById('download-final-btn').href = `/api/projects/${data.project_id}/final/download`;
+                    btn.disabled = false;
+                    btn.textContent = 'Start Final Render';
+                    notifyUser("Render Complete!", "Your master render is ready.");
+                    loadProjects(); // Refresh status on cards
+                }
+            });
+
+            source.onerror = (err) => {
+                console.error("SSE Connection error, retrying...", err);
+            };
+        }
+
+        function notifyUser(title, body) {
+            if (!("Notification" in window)) return;
+            if (Notification.permission === "granted") {
+                new Notification(title, { body, icon: '/static/img/logo.png' });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProjects();
+            setupSSE();
+
+            if ("Notification" in window && Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -13,114 +13,174 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from processor import process_video
 
 from flask_cors import CORS
+from flask_sse import sse
+from core.redis_client import RedisManager
+from core.sse_relay import TelemetryRelay, RedisStreamRelay
+from core.db import init_db
+from .api import api_bp
+from .swagger import swaggerui_blueprint, SWAGGER_URL
+from .state import jobs, Job
+
+# Initialize Database
+init_db()
 
 app = Flask(__name__)
 CORS(app)
-from .api import api_bp
-from .swagger import swaggerui_blueprint, SWAGGER_URL
+
+# SSE Configuration
+app.config["REDIS_URL"] = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+app.register_blueprint(sse, url_prefix="/sse")
+
+# Initialize Redis Manager
+redis_mgr = RedisManager()
+
+
+def broadcast_hardware_stats(data):
+    """Callback for TelemetryRelay to publish to SSE."""
+    with app.app_context():
+        # Publish to 'hardware' type
+        sse.publish(data, type="hardware")
+
+
+def broadcast_progress(data):
+    """Callback for Progress Relay to publish to SSE."""
+    with app.app_context():
+        # Use the type from data if available, default to "progress"
+        event_type = data.get("type", "progress")
+        sse.publish(data, type=event_type)
+
+
+# Start Relays
+telemetry_relay = TelemetryRelay(redis_mgr, broadcast_hardware_stats)
+telemetry_relay.start()
+
+progress_relay = RedisStreamRelay(
+    redis_mgr, "progress:stream", broadcast_progress, "ProgressRelay"
+)
+progress_relay.start()
 
 app.register_blueprint(api_bp)
 app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 # Use absolute paths for upload/output folders
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'static', 'uploads')
-app.config['OUTPUT_FOLDER'] = os.path.join(BASE_DIR, 'static', 'outputs')
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024  # 10GB max
+app.config["UPLOAD_FOLDER"] = os.path.join(BASE_DIR, "static", "uploads")
+app.config["OUTPUT_FOLDER"] = os.path.join(BASE_DIR, "static", "outputs")
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024 * 1024  # 10GB max
 
 # Ensure directories exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
+os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+os.makedirs(app.config["OUTPUT_FOLDER"], exist_ok=True)
 
-# In-memory job tracking
-from .state import jobs, Job
 
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/upload', methods=['POST'])
+
+@app.route("/dashboard")
+def dashboard():
+    return render_template("dashboard.html")
+
+
+@app.route("/sse/hardware")
+def hardware_sse():
+    """Proxy route for hardware SSE to comply with AC, or use default /sse."""
+    # Since flask-sse doesn't easily support multiple separate streams by URL
+    # without separate blueprints, we point users to the /sse?channel=common or similar.
+    # However, for this project, just redirecting or proxying works.
+    return sse.events()
+
+
+@app.route("/upload", methods=["POST"])
 def upload_video():
-    if 'video' not in request.files:
-        return jsonify({'error': 'No video file'}), 400
-    
-    file = request.files['video']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    
+    if "video" not in request.files:
+        return jsonify({"error": "No video file"}), 400
+
+    file = request.files["video"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
     # Generate job ID
     job_id = str(uuid.uuid4())
-    
+
     # Save file
     filename = secure_filename(file.filename)
-    input_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{job_id}_{filename}")
+    input_path = os.path.join(app.config["UPLOAD_FOLDER"], f"{job_id}_{filename}")
     file.save(input_path)
-    
+
     # Get parameters
     params = {
-        'min_silence': int(request.form.get('min_silence', 2000)),
-        'silence_thresh': int(request.form.get('silence_thresh', -63)),
-        'crossfade': float(request.form.get('crossfade', 0.2)),
-        'bitrate': request.form.get('bitrate', '5000k'),
-        'preset': request.form.get('preset', 'medium'),
-        'use_crf': request.form.get('use_crf') == 'true',
-        'crf': int(request.form.get('crf', 18)),
-        'filler_words': [w.strip() for w in request.form.get('filler_words', '').split(';') if w.strip()],
-        'remove_freeze': request.form.get('remove_freeze') == 'true',
-        'freeze_duration': float(request.form.get('freeze_duration', 5)),
-        'remove_background': request.form.get('remove_background') == 'true',
-        'bg_color': request.form.get('bg_color', 'green'),
-        'bg_image': None,
-        'rvm_model': request.form.get('rvm_model', 'mobilenetv3'),
+        "min_silence": int(request.form.get("min_silence", 2000)),
+        "silence_thresh": int(request.form.get("silence_thresh", -63)),
+        "crossfade": float(request.form.get("crossfade", 0.2)),
+        "bitrate": request.form.get("bitrate", "5000k"),
+        "preset": request.form.get("preset", "medium"),
+        "use_crf": request.form.get("use_crf") == "true",
+        "crf": int(request.form.get("crf", 18)),
+        "filler_words": [
+            w.strip()
+            for w in request.form.get("filler_words", "").split(";")
+            if w.strip()
+        ],
+        "remove_freeze": request.form.get("remove_freeze") == "true",
+        "freeze_duration": float(request.form.get("freeze_duration", 5)),
+        "remove_background": request.form.get("remove_background") == "true",
+        "bg_color": request.form.get("bg_color", "green"),
+        "bg_image": None,
+        "rvm_model": request.form.get("rvm_model", "mobilenetv3"),
         # Morphological cleanup
-        'rvm_erode': int(request.form.get('rvm_erode', 0)),
-        'rvm_dilate': int(request.form.get('rvm_dilate', 0)),
-        'rvm_median': int(request.form.get('rvm_median', 0)),
-        'rvm_blur': int(request.form.get('rvm_blur', 0)),
+        "rvm_erode": int(request.form.get("rvm_erode", 0)),
+        "rvm_dilate": int(request.form.get("rvm_dilate", 0)),
+        "rvm_median": int(request.form.get("rvm_median", 0)),
+        "rvm_blur": int(request.form.get("rvm_blur", 0)),
         # Segmentation
-        'use_segmentation': request.form.get('use_segmentation') == 'true',
-        'seg_model': request.form.get('seg_model', 'general'),
-        'seg_threshold': float(request.form.get('seg_threshold', 0.5)),
-        'seg_smooth': int(request.form.get('seg_smooth', 5)),
+        "use_segmentation": request.form.get("use_segmentation") == "true",
+        "seg_model": request.form.get("seg_model", "general"),
+        "seg_threshold": float(request.form.get("seg_threshold", 0.5)),
+        "seg_smooth": int(request.form.get("seg_smooth", 5)),
+        "render_preset": request.form.get("render_preset", "speed"),
     }
-    
+
     # Handle background image upload if provided
-    if 'bg_image' in request.files and request.files['bg_image'].filename:
-        bg_image_file = request.files['bg_image']
+    if "bg_image" in request.files and request.files["bg_image"].filename:
+        bg_image_file = request.files["bg_image"]
         bg_image_filename = secure_filename(bg_image_file.filename)
-        bg_image_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{job_id}_bg_{bg_image_filename}")
+        bg_image_path = os.path.join(
+            app.config["UPLOAD_FOLDER"], f"{job_id}_bg_{bg_image_filename}"
+        )
         bg_image_file.save(bg_image_path)
-        params['bg_image'] = bg_image_path
-    
+        params["bg_image"] = bg_image_path
+
     # Create job
     job = Job(job_id, filename)
     jobs[job_id] = job
-    
+
     # Start processing in background thread
     # Generate output filename: {original_name}_edited_{YYYYMMDD_HHMM}_{short_job_id}.mp4
     timestamp = datetime.now().strftime("%Y%m%d_%H%M")
     base_name = os.path.splitext(filename)[0]
     short_job_id = job_id[:8]
     output_filename = f"{base_name}_edited_{timestamp}_{short_job_id}.mp4"
-    output_path = os.path.join(app.config['OUTPUT_FOLDER'], output_filename)
+    output_path = os.path.join(app.config["OUTPUT_FOLDER"], output_filename)
     thread = threading.Thread(
-        target=process_video_async,
-        args=(job_id, input_path, output_path, params)
+        target=process_video_async, args=(job_id, input_path, output_path, params)
     )
     thread.daemon = True
     thread.start()
-    
-    return jsonify({'job_id': job_id})
+
+    return jsonify({"job_id": job_id})
+
 
 def process_video_async(job_id, input_path, output_path, params):
     """Process video in background thread"""
     job = jobs[job_id]
-    
+
     try:
-        job.status = 'processing'
-        job.message = 'Starting video processing...'
+        job.status = "processing"
+        job.message = "Starting video processing..."
         job.progress = 5
-        
+
         def update_progress(progress, message):
             job.progress = progress
             job.message = message
@@ -129,92 +189,103 @@ def process_video_async(job_id, input_path, output_path, params):
         process_video(
             input_path,
             output_path,
-            params['min_silence'],
-            params['silence_thresh'],
-            0.2,    # crossfade_duration
-            "5000k", # bitrate (auto-detected)
-            18,     # crf
-            "medium", # preset
+            params["min_silence"],
+            params["silence_thresh"],
+            0.2,  # crossfade_duration
+            "5000k",  # bitrate (auto-detected)
+            18,  # crf
+            "medium",  # preset
             False,  # use_crf
             False,  # use_gpu_encoding
-            True,   # no_crossfade (FORCE TRUE)
-            params['filler_words'],  # filler_words
-            params['freeze_duration'] if params['remove_freeze'] else None,  # freeze_duration
-            0.001,   # freeze_noise
-            params['remove_background'],  # remove_background
-            params['bg_color'],  # bg_color
-            params['bg_image'],  # bg_image
-            params['rvm_model'],  # rvm_model
+            True,  # no_crossfade (FORCE TRUE)
+            params["filler_words"],  # filler_words
+            params["freeze_duration"]
+            if params["remove_freeze"]
+            else None,  # freeze_duration
+            0.001,  # freeze_noise
+            params["remove_background"],  # remove_background
+            params["bg_color"],  # bg_color
+            params["bg_image"],  # bg_image
+            params["rvm_model"],  # rvm_model
             None,  # rvm_downsample (auto)
-            params['use_segmentation'],  # use_segmentation
-            params['seg_model'],  # seg_model
-            params['seg_threshold'],  # seg_threshold
-            params['seg_smooth'],  # seg_smooth
-            params['rvm_erode'],  # rvm_erode
-            params['rvm_dilate'],  # rvm_dilate
-            params['rvm_median'],  # rvm_median
-            params['rvm_blur'],  # rvm_blur
-            update_progress # progress_callback
+            params["use_segmentation"],  # use_segmentation
+            params["seg_model"],  # seg_model
+            params["seg_threshold"],  # seg_threshold
+            params["seg_smooth"],  # seg_smooth
+            params["rvm_erode"],  # rvm_erode
+            params["rvm_dilate"],  # rvm_dilate
+            params["rvm_median"],  # rvm_median
+            params["rvm_blur"],  # rvm_blur
+            params.get("render_preset", "speed"),  # render_preset
+            update_progress,  # progress_callback
         )
-        
-        job.status = 'complete'
+
+        job.status = "complete"
         job.progress = 100
-        job.message = 'Processing complete!'
+        job.message = "Processing complete!"
         job.output_path = output_path
-        
+
     except Exception as e:
-        job.status = 'error'
+        job.status = "error"
         job.error = str(e)
-        job.message = f'Error: {str(e)}'
-    
+        job.message = f"Error: {str(e)}"
+
     finally:
         # Cleanup input file
         if os.path.exists(input_path):
             os.remove(input_path)
         # Cleanup background image if used
-        if params.get('bg_image') and os.path.exists(params['bg_image']):
-            os.remove(params['bg_image'])
+        if params.get("bg_image") and os.path.exists(params["bg_image"]):
+            os.remove(params["bg_image"])
 
-@app.route('/progress/<job_id>')
+
+@app.route("/progress/<job_id>")
 def progress(job_id):
     """Server-Sent Events endpoint for progress updates"""
+
     def generate():
         if job_id not in jobs:
             yield f"data: {json.dumps({'error': 'Job not found'})}\n\n"
             return
-        
+
         job = jobs[job_id]
         last_progress = -1
-        
+
         while True:
-            if job.progress != last_progress or job.status in ['complete', 'error']:
+            if job.progress != last_progress or job.status in ["complete", "error"]:
                 data = {
-                    'status': job.status,
-                    'progress': job.progress,
-                    'message': job.message
+                    "status": job.status,
+                    "progress": job.progress,
+                    "message": job.message,
                 }
                 yield f"data: {json.dumps(data)}\n\n"
                 last_progress = job.progress
-                
-                if job.status in ['complete', 'error']:
-                    break
-            
-            time.sleep(0.5)
-    
-    return Response(generate(), mimetype='text/event-stream')
 
-@app.route('/download/<job_id>')
+                if job.status in ["complete", "error"]:
+                    break
+
+            time.sleep(0.5)
+
+    return Response(generate(), mimetype="text/event-stream")
+
+
+@app.route("/download/<job_id>")
 def download(job_id):
     if job_id not in jobs:
-        return jsonify({'error': 'Job not found'}), 404
-    
-    job = jobs[job_id]
-    if job.status != 'complete' or not job.output_path:
-        return jsonify({'error': 'Video not ready'}), 400
-    
-    return send_file(job.output_path, as_attachment=True, download_name=os.path.basename(job.output_path))
+        return jsonify({"error": "Job not found"}), 404
 
-if __name__ == '__main__':
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-    os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)
+    job = jobs[job_id]
+    if job.status != "complete" or not job.output_path:
+        return jsonify({"error": "Video not ready"}), 400
+
+    return send_file(
+        job.output_path,
+        as_attachment=True,
+        download_name=os.path.basename(job.output_path),
+    )
+
+
+if __name__ == "__main__":
+    os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+    os.makedirs(app.config["OUTPUT_FOLDER"], exist_ok=True)
+    app.run(debug=True, host="0.0.0.0", port=5000, threaded=True, use_reloader=False)

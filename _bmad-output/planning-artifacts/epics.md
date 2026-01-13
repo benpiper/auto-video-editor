@@ -227,7 +227,7 @@ As a user, I want to adjust my detection settings and see an updated preview wit
 - **When** I change a threshold and click "Re-Preview"
 - **Then** the UI must trigger a fresh assembly job and update the `<video>` player dynamically.
 
-## Epic 5: Master Rendering & Quality Presets
+## Epic 5: Master Rendering & Quality Presets [DONE]
 
 The final production stage where the full-length render is executed using hardware-accelerated codecs (NVENC).
 **FRs covered:** FR11, FR12, FR13, FR14

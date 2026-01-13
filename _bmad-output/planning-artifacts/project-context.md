@@ -24,7 +24,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Media Backend**: `ffmpeg` (with NVENC), `ffmpegcv` (GPU zero-copy), `av>=10.0.0` (PyAV)
 - **AI/IL Logic**: `torch>=2.9.1`, `torchaudio>=2.9.1`, `transformers>=4.57.3`, `openai-whisper>=20250625`
 - **Web & Dashboard**: `flask>=3.1.2`, `flask-sse`, `flask-cors>=6.0.2`
-- **Logic**: `numpy>=2.2.6`, `librosa>=0.11.0`, `mediapipe>=0.10.9`, `pynvml` (HV Monitoring)
+- **Logic**: `numpy>=2.2.6`, `librosa>=0.11.0`, `mediapipe>=0.10.9`, `nvidia-ml-py` (HV Monitoring)
 
 ### Infrastructure
 - **Broker**: Redis v7.0+ (Streams support mandatory)
@@ -35,7 +35,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 ## Critical Implementation Rules
 
 ### 1. Hardware-Aware VRAM Guard (Strict Enforcement)
-- **Monitoring**: Use `pynvml` for all VRAM health checks. Do NOT rely solely on `torch.cuda.memory_allocated()`.
+- **Monitoring**: Use `nvidia-ml-py` for all VRAM health checks. Do NOT rely solely on `torch.cuda.memory_allocated()`.
 - **Mandatory Buffer**: All media workers MUST check for a 1.5GB VRAM safety buffer before initialization.
 - **Locking Pattern**: No worker may allocate GPU resources without acquiring the global Redis lock: `lock:vram_atomic`.
 - **OOM Fail-Safe**: Catch `torch.cuda.OutOfMemoryError` and FFmpeg return codes. On OOM, log to telemetry and *immediately* release the Redis lock before exiting.

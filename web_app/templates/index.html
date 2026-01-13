@@ -4,15 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auto Video Editor</title>
+    <title>AutoCut AI - High Speed Video Cleaning</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
 <body>
     <div class="container">
-        <header>
-            <h1>🎬 Auto Video Editor</h1>
-            <p>Remove silence, filler words, and backgrounds from your videos</p>
+        <header style="display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; justify-content: center;">
+            <img src="/static/img/logo.png" alt="AutoCut AI"
+                style="width: 64px; height: 64px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="text-align: left;">
+                <h1
+                    style="margin: 0; font-size: 2.5rem; background: linear-gradient(135deg, #fff, #22d3ee); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                    AutoCut AI</h1>
+                <p style="margin: 0; opacity: 0.8;">Professional Automatic Content Cleaning</p>
+            </div>
         </header>
 
         <main>
@@ -116,7 +122,7 @@
                             <option value="mobilenetv3">MobileNetV3 (Faster, recommended)</option>
                             <option value="resnet50">ResNet50 (Higher quality, slower)</option>
                         </select>
-                        
+
                         <!-- Background Removal Mode -->
                         <div style="margin-top: 1rem;">
                             <label>Background Removal Method</label>
@@ -131,7 +137,7 @@
                                 </label>
                             </div>
                         </div>
-                        
+
                         <!-- Morphological Cleanup (RVM only) -->
                         <div id="morph-cleanup-section" style="margin-top: 1rem;">
                             <label for="morph-preset">Cleanup Preset</label>
@@ -140,30 +146,34 @@
                                 <option value="light">Light Cleanup (3/5/5)</option>
                                 <option value="aggressive">Aggressive Cleanup (5/7/7) ⭐</option>
                             </select>
-                            
+
                             <details style="margin-top: 0.5rem;">
                                 <summary style="cursor: pointer; user-select: none;">Advanced Cleanup Settings</summary>
                                 <div style="margin-top: 0.75rem; padding-left: 0.5rem; border-left: 2px solid #ddd;">
                                     <div class="param-item" style="margin-bottom: 0.75rem;">
-                                        <label for="rvm-erode">Erosion (removes artifacts): <span id="erode-val">0</span></label>
+                                        <label for="rvm-erode">Erosion (removes artifacts): <span
+                                                id="erode-val">0</span></label>
                                         <input type="range" id="rvm-erode" min="0" max="10" value="0" step="1">
                                     </div>
                                     <div class="param-item" style="margin-bottom: 0.75rem;">
-                                        <label for="rvm-dilate">Dilation (fills holes): <span id="dilate-val">0</span></label>
+                                        <label for="rvm-dilate">Dilation (fills holes): <span
+                                                id="dilate-val">0</span></label>
                                         <input type="range" id="rvm-dilate" min="0" max="10" value="0" step="1">
                                     </div>
                                     <div class="param-item" style="margin-bottom: 0.75rem;">
-                                        <label for="rvm-median">Median Filter (denoise): <span id="median-val">0</span></label>
+                                        <label for="rvm-median">Median Filter (denoise): <span
+                                                id="median-val">0</span></label>
                                         <input type="range" id="rvm-median" min="0" max="15" value="0" step="2">
                                     </div>
                                     <div class="param-item">
-                                        <label for="rvm-blur">Edge Blur (smoothing): <span id="blur-val">0</span></label>
+                                        <label for="rvm-blur">Edge Blur (smoothing): <span
+                                                id="blur-val">0</span></label>
                                         <input type="range" id="rvm-blur" min="0" max="10" value="0" step="1">
                                     </div>
                                 </div>
                             </details>
                         </div>
-                        
+
                         <!-- Segmentation Options -->
                         <div id="seg-options-section" style="margin-top: 1rem; display: none;">
                             <label for="seg-model">Segmentation Model</label>
@@ -171,13 +181,14 @@
                                 <option value="general">General (default)</option>
                                 <option value="landscape">Portrait/Selfie</option>
                             </select>
-                            
+
                             <div class="param-item" style="margin-bottom: 0.75rem;">
-                                <label for="seg-threshold">Detection Threshold: <span id="threshold-val">0.5</span></label>
+                                <label for="seg-threshold">Detection Threshold: <span
+                                        id="threshold-val">0.5</span></label>
                                 <input type="range" id="seg-threshold" min="0" max="1" value="0.5" step="0.05">
                                 <small>Lower = more inclusive</small>
                             </div>
-                            
+
                             <div class="param-item">
                                 <label for="seg-smooth">Mask Smoothing: <span id="smooth-val">5</span></label>
                                 <input type="range" id="seg-smooth" min="0" max="15" value="5" step="1">

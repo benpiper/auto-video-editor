@@ -27,6 +27,19 @@ dependencies = [
     "torchvision>=0.24.1",
     "flask-swagger-ui>=5.21.0",
     "flask-cors>=6.0.2",
+    "flask-sse>=0.1",
+    "ffmpegcv>=0.3.18",
+    "nvidia-ml-py>=12.535.133",
+    "redis>=5.0.0",
+    "circuitbreaker>=2.0.0",
+    "peewee>=3.17.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "fakeredis>=2.21.0",
+    "lupa>=2.0",
 ]
 
 

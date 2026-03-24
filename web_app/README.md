@@ -1,6 +1,6 @@
 # Web Frontend for Auto Video Editor
 
-A simple web interface for the auto-video-editor with drag-and-drop upload and real-time progress tracking.
+A drag-and-drop web interface for AutoCut AI with real-time progress tracking.
 
 ## Features
 
@@ -9,23 +9,16 @@ A simple web interface for the auto-video-editor with drag-and-drop upload and r
 - ⚙️ Adjustable processing parameters
 - 📊 Real-time progress updates (Server-Sent Events)
 - 📥 One-click download
-- 🚀 No external dependencies (just Flask)
 
 ## Quick Start
 
-### 1. Install Dependencies
-
-Flask is already installed if you ran `uv add flask`.
-
-### 2. Run the Web Server
+See the main [README.md](../README.md) for installation. To start the web server:
 
 ```bash
-python web_app/app.py
+uv run web_app/app.py
 ```
 
-### 3. Access the Interface
-
-Open your browser to: **http://localhost:5000**
+Then visit: **http://localhost:5000**
 
 ## Usage
 
@@ -75,13 +68,13 @@ web_app/
 
 ## Configuration
 
-Edit `app.py` to change:
+Edit `app.py` to customize upload limits:
 
 ```python
-app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # Max upload size
-app.config['UPLOAD_FOLDER'] = 'web_app/static/uploads'
-app.config['OUTPUT_FOLDER'] = 'web_app/static/outputs'
+app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # Max upload size (bytes)
 ```
+
+For folder paths and Redis configuration, see the main [README.md](../README.md#configuration).
 
 ## Cleanup
 
@@ -127,16 +120,12 @@ app.run(debug=True, host='0.0.0.0', port=5001)
 
 For production use, consider:
 
-1. **Use a production WSGI server**:
+1. **Use a production WSGI server** (e.g., gunicorn):
    ```bash
-   pip install gunicorn
-   gunicorn -w 4 -b 0.0.0.0:5000 web_app.app:app
+   uv run gunicorn -w 4 -b 0.0.0.0:5000 web_app.app:app
    ```
 
-2. **Add authentication**
-3. **Implement file cleanup cron job**
-4. **Use cloud storage for uploads/outputs**
-5. **Add rate limiting**
+2. Add authentication, implement file cleanup, use cloud storage, add rate limiting
 
 ## Development
 

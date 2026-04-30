@@ -1,0 +1,4 @@
+## 2026-04-30 - Fix Path Traversal in File Upload and Job Creation
+**Vulnerability:** Found arbitrary file read/processing vulnerabilities in `web_app/api.py`. The `filename` and `bg_image` inputs from user JSON data were being directly joined with `os.path.join` and processed without restricting them to the upload folder.
+**Learning:** `os.path.join(base, user_input)` in Python allows absolute paths or directory traversal characters (`../`) to escape the base directory. Using `secure_filename` from `werkzeug.utils` strips spaces and non-ascii characters making valid file retrieval hard.
+**Prevention:** Always validate that the fully resolved absolute path of any user-provided filename strictly starts with the absolute path of the intended base directory plus an OS separator (`os.sep`), and do not rely solely on simple string matching which may be susceptible to sibling directory traversal.

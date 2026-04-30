@@ -141,7 +141,10 @@ def create_job():
         return jsonify({'error': 'filename is required (from /upload)'}), 400
         
     upload_folder = current_app.config['UPLOAD_FOLDER']
-    input_path = os.path.join(upload_folder, input_filename)
+    # Prevent path traversal by getting absolute paths and checking prefix
+    input_path = os.path.abspath(os.path.join(upload_folder, input_filename))
+    if not input_path.startswith(os.path.abspath(upload_folder) + os.sep):
+        return jsonify({'error': 'Invalid filename'}), 400
     
     if not os.path.exists(input_path):
         return jsonify({'error': 'File not found. Please upload first.'}), 404
@@ -156,11 +159,19 @@ def create_job():
     # For now, let's assume 'bg_image_path' if locally available, or they need to upload it separately?
     # Let's keep it simple: allow absolute path for bg_image or uploaded filename
     bg_image = data.get('bg_image')
-    if bg_image and not os.path.isabs(bg_image):
-        # Check if it exists in uploads
-        bg_check = os.path.join(upload_folder, bg_image)
-        if os.path.exists(bg_check):
+    if bg_image:
+        if os.path.isabs(bg_image):
+            # Only allow absolute paths if they are within the upload folder
+            bg_check = os.path.abspath(bg_image)
+        else:
+            # Check if it exists in uploads
+            bg_check = os.path.abspath(os.path.join(upload_folder, bg_image))
+
+        # Prevent path traversal for bg_image
+        if bg_check.startswith(os.path.abspath(upload_folder) + os.sep) and os.path.exists(bg_check):
             bg_image = bg_check
+        else:
+            bg_image = None
     
     params = {
         'min_silence': data.get('min_silence', 2000),

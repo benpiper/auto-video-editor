@@ -1,7 +1,6 @@
 import numpy as np
 import moviepy.editor as mp
 from moviepy.audio.AudioClip import AudioArrayClip
-import os
 
 
 def create_tone(duration, freq=440, volume=0.5, fps=44100):
@@ -35,7 +34,6 @@ def create_test_video(output_path="test_video.mp4"):
     )
     audio_clip = AudioArrayClip(full_audio_arr, fps=audio_fps)
 
-    duration = audio_clip.duration
 
     # Create a visual clip (just a color screen with text maybe, or changing colors)
     # Let's make it change colors to visualize cuts

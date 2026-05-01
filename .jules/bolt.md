@@ -1,0 +1,3 @@
+## 2026-05-01 - FFmpeg vs PyDub Performance for Audio Processing
+**Learning:** `pydub.silence.detect_silence` loads the entire uncompressed audio file into RAM as an `AudioSegment` and iterates through it in Python space, which is highly memory-intensive and relatively slow (taking ~190+ seconds for a 10-minute audio track). Replacing this with `subprocess` calling FFmpeg's `silencedetect` filter offloads the processing to an optimized C stream, taking just ~4.5 seconds for the same task with virtually no memory overhead.
+**Action:** When performing audio analysis or processing (like silence detection), prefer streaming it through native FFmpeg filters via subprocess over loading the entire file into memory with libraries like PyDub or MoviePy.

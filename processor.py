@@ -1,8 +1,7 @@
 import os
 import logging
 from typing import List, Tuple, Optional, Callable
-import moviepy.editor as mp
-from moviepy.editor import VideoFileClip, concatenate_videoclips
+from moviepy.editor import VideoFileClip
 import whisper
 from pydub import AudioSegment, silence
 
@@ -258,7 +257,6 @@ def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]]
         List of paths to extracted segment files
     """
     import subprocess
-    import tempfile
     
     segment_files = []
     

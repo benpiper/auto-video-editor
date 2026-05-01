@@ -1,0 +1,3 @@
+## 2026-05-01 - Hidden File Inputs Accessibility Trap
+**Learning:** Custom drag-and-drop zones that wrap hidden native file inputs (`<input type="file" hidden>`) often lose keyboard accessibility entirely. Keyboard users cannot tab to them or press Enter/Space to trigger the file browser, completely blocking the core user flow for keyboard-only or screen reader users.
+**Action:** When creating custom drag-and-drop upload areas, always add `tabindex="0"`, `role="button"`, an appropriate `aria-label`, and JS event listeners for `Enter` and `Space` keys mapped to the hidden file input's click method. Add `:focus-visible` styles so focus is visually clear.

@@ -1,0 +1,4 @@
+## 2025-05-01 - Path Traversal in API Endpoint
+**Vulnerability:** Found a critical path traversal vulnerability in `web_app/api.py` where user-provided `filename` and `bg_image` were passed directly to `os.path.join(upload_folder, ...)`. This allowed an attacker to read arbitrary system files (e.g., `../../../../etc/passwd`).
+**Learning:** The vulnerability existed because the API endpoint `create_job` assumed inputs from the REST JSON payload were safe or already sanitized, unlike the `upload_file` endpoint which correctly used `secure_filename`. Absolute paths were even explicitly permitted for `bg_image`.
+**Prevention:** Never trust user input, even in internal-facing or secondary API endpoints. Always sanitize filenames using a secure utility like `werkzeug.utils.secure_filename` before appending them to base directories, and restrict path resolutions strictly to safe, expected directories.

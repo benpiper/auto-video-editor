@@ -1,0 +1,4 @@
+## 2026-05-02 - Path Traversal via API Job Parameters
+**Vulnerability:** The `/api/jobs` endpoint accepted unvalidated `filename` and `bg_image` parameters from user JSON, using them directly in `os.path.join(upload_folder, input_filename)` and subsequently deleting the referenced files in a background worker after job execution.
+**Learning:** Even though the `/api/upload` endpoint properly sanitized `secure_filename(file.filename)` during the upload process, the subsequent API endpoint that initiated the job from JSON input failed to apply the same validation. This discrepancy created a blind spot where an attacker could bypass upload restrictions and target arbitrary files using `../`.
+**Prevention:** Consistently apply `werkzeug.utils.secure_filename()` on ALL user-provided filenames, regardless of whether they originate from multipart form uploads or JSON requests, before using them in file path construction (`os.path.join`).

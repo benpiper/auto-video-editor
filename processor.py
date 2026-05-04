@@ -1,13 +1,60 @@
 import os
 import logging
 from typing import List, Tuple, Optional, Callable
-import moviepy.editor as mp
-from moviepy.editor import VideoFileClip, concatenate_videoclips
+from moviepy.editor import VideoFileClip
 import whisper
 from pydub import AudioSegment, silence
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def get_video_info(video_path: str) -> dict:
+    """Gets video duration and dimensions quickly using ffprobe."""
+    import subprocess
+    import json
+    cmd = [
+        "ffprobe", "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=width,height,duration",
+        "-of", "json",
+        video_path
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        info = json.loads(result.stdout)
+        stream = info.get("streams", [{}])[0]
+
+        # Duration might be at format level if not at stream level
+        duration = stream.get("duration")
+        if not duration:
+            fmt_cmd = [
+                "ffprobe", "-v", "error",
+                "-show_entries", "format=duration",
+                "-of", "json",
+                video_path
+            ]
+            fmt_result = subprocess.run(fmt_cmd, capture_output=True, text=True, check=True)
+            fmt_info = json.loads(fmt_result.stdout)
+            duration = fmt_info.get("format", {}).get("duration", 0)
+
+        return {
+            "duration": float(duration),
+            "width": int(stream.get("width", 0)),
+            "height": int(stream.get("height", 0))
+        }
+    except (subprocess.CalledProcessError, json.JSONDecodeError, ValueError, IndexError) as e:
+        logging.error(f"Error getting video info for {video_path}: {e}")
+        # Fallback to moviepy if ffprobe fails
+        video = VideoFileClip(video_path)
+        info = {
+            "duration": video.duration,
+            "width": video.size[0],
+            "height": video.size[1]
+        }
+        video.close()
+        return info
+
 
 def format_timestamp(seconds: float) -> str:
     """Convert seconds to HH:MM:SS format."""
@@ -18,18 +65,36 @@ def format_timestamp(seconds: float) -> str:
 
 
 def extract_audio(video_path: str, audio_path: str):
-    """Extracts audio from video file. Returns True if audio exists, False otherwise."""
+    """Extracts audio from video file using FFmpeg directly for speed. Returns True if audio exists, False otherwise."""
+    import subprocess
     logging.info(f"Extracting audio from {video_path} to {audio_path}")
-    video = VideoFileClip(video_path)
     
-    if video.audio is None:
-        logging.warning("Video has no audio track - skipping audio-based detection")
-        video.close()
+    # Fast check if audio stream exists using ffprobe
+    probe_cmd = [
+        "ffprobe", "-v", "error",
+        "-select_streams", "a",
+        "-show_entries", "stream=codec_name",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        video_path
+    ]
+    try:
+        probe_result = subprocess.run(probe_cmd, capture_output=True, text=True, check=True)
+        if not probe_result.stdout.strip():
+            logging.warning("Video has no audio track - skipping audio-based detection")
+            return False
+
+        # Extract audio directly using ffmpeg
+        extract_cmd = [
+            "ffmpeg", "-y", "-i", video_path,
+            "-vn", "-acodec", "pcm_s16le", "-ar", "44100", "-ac", "2",
+            audio_path
+        ]
+        # Suppress output equivalent to verbose=False
+        subprocess.run(extract_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"FFmpeg error extracting audio: {e}")
         return False
-    
-    video.audio.write_audiofile(audio_path, verbose=False, logger=None)
-    video.close()
-    return True
 
 def detect_silence(audio_path: str, min_silence_len: int = 2000, silence_thresh: int = -40) -> List[Tuple[float, float]]:
     """
@@ -258,7 +323,6 @@ def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]]
         List of paths to extracted segment files
     """
     import subprocess
-    import tempfile
     
     segment_files = []
     
@@ -619,11 +683,11 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
             logging.info(f"Total duration to be removed: {format_timestamp(total_removed_duration)}")
         
         # 5. Get Keep Intervals
-        video = VideoFileClip(working_video_path)  # Use transposed video if applicable
-        total_duration = video.duration
+        video_info = get_video_info(working_video_path)
+        total_duration = video_info["duration"]
         
         # Store original dimensions to preserve them
-        original_size = video.size
+        original_size = (video_info["width"], video_info["height"])
         logging.info(f"Original video dimensions: {original_size[0]}x{original_size[1]} (width x height)")
         
         keep_intervals = invert_intervals(merged_remove_intervals, total_duration)
@@ -643,11 +707,9 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
                 import shutil
                 shutil.copy2(working_video_path, output_path)
                 logging.info(f"Copied original video to: {output_path}")
-                video.close()
                 # Continue to background removal below
             else:
                 logging.info("The video is already optimized. Exiting without re-encoding.")
-                video.close()
                 return {'status': 'skipped', 'transcript': transcript_text}
 
         logging.info(f"Cutting video. Keeping {len(keep_intervals)} segments.")
@@ -817,14 +879,6 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
 
                 
     finally:
-        # Cleanup video object if it exists
-        try:
-            if 'video' in locals():
-                video.close()
-                logging.debug("Closed video object")
-        except Exception as e:
-            logging.warning(f"Error closing video object: {e}")
-        
         # Cleanup temporary audio
         if os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)

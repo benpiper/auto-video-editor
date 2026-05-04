@@ -16,6 +16,19 @@
     box-sizing: border-box;
 }
 
+/* Global Focus States */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[role="button"]:focus-visible,
+.upload-area:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg);
@@ -75,6 +88,11 @@ header p {
 .upload-area:hover {
     border-color: var(--primary);
     background: rgba(99, 102, 241, 0.05);
+}
+
+.upload-area:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .upload-area.drag-over {

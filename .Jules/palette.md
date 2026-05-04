@@ -1,0 +1,3 @@
+## 2025-01-09 - Keyboard Accessibility for Custom Components
+**Learning:** Custom CSS resets and global styles often unintentionally omit focus outlines (`:focus-visible`) for custom interactive components like drag-and-drop upload areas. This breaks keyboard navigation completely for users relying on Tab/Enter. Furthermore, `div` elements used as buttons need explicit `tabindex="0"`, `role="button"`, and keyboard event listeners (Enter/Space) to be fully accessible.
+**Action:** When building or modifying custom interactive elements (like an upload area), explicitly add `:focus-visible` styles matching the primary theme, ensure `tabindex="0"` and `role="button"` are set, and bind `keydown` listeners for 'Enter' and 'Space' alongside standard 'click' events.

@@ -1,0 +1,3 @@
+## 2026-05-04 - Avoid moviepy VideoFileClip for simple metadata/audio extraction
+**Learning:** `moviepy.editor.VideoFileClip` incurs a high performance penalty for simple tasks because it loads video frames and initializes complex objects. Using it to fetch basic metadata (`video.duration`, `video.size`) or to extract an entire audio stream is noticeably slower than native options.
+**Action:** Always prefer native `ffprobe` to fetch fast video metadata like width/height/duration, and `ffmpeg` via `subprocess` for simple audio extraction. Reserve `moviepy` only when actual programmatic timeline composition or deep frame manipulations are necessary.

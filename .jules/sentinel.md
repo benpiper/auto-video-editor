@@ -1,0 +1,4 @@
+## 2024-05-06 - Path Traversal via Unsanitized JSON Inputs in Secondary Endpoints
+**Vulnerability:** The `/api/jobs` endpoint trusted unsanitized `filename` and `bg_image` strings provided via JSON payload to construct file paths and eventually delete them.
+**Learning:** Even if the primary upload endpoint sanitizes multipart file names, secondary endpoints that accept filenames via JSON and perform file operations (like reading or cleanup) must independently sanitize those inputs. Relying only on primary upload sanitization allows attackers to bypass restrictions via spoofed JSON payloads.
+**Prevention:** Always apply `secure_filename()` (or equivalent path sanitization) to any user-provided string that will be used to construct a file path or execute a file system operation, regardless of the transport method (JSON, form data, URL params).

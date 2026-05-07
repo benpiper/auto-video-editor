@@ -1,0 +1,3 @@
+## 2026-05-07 - Avoid MoviePy Overhead for Basic Video Metadata/Audio Extraction
+**Learning:** `moviepy.editor.VideoFileClip` incurs a massive import and initialization overhead (over 1 second import, ~0.1s load per file). Using it solely to fetch duration, size, or to extract an audio track is highly inefficient compared to native `ffprobe` or `ffmpeg` commands via `subprocess`, which perform the same tasks in fractions of a second (~0.07s).
+**Action:** When basic metadata fetching or simple audio extraction is needed, use `ffprobe`/`ffmpeg` directly rather than initializing heavy wrapper objects like `VideoFileClip`.

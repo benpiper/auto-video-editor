@@ -17,6 +17,12 @@ const newVideoBtn = document.getElementById('new-video-btn');
 
 // File upload handling
 uploadArea.addEventListener('click', () => videoInput.click());
+uploadArea.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        videoInput.click();
+    }
+});
 
 uploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();

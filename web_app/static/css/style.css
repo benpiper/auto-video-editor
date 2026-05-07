@@ -72,9 +72,12 @@ header p {
     transition: all 0.3s ease;
 }
 
-.upload-area:hover {
+.upload-area:hover,
+.upload-area:focus-visible {
     border-color: var(--primary);
     background: rgba(99, 102, 241, 0.05);
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .upload-area.drag-over {

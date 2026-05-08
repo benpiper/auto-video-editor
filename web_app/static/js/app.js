@@ -18,6 +18,14 @@ const newVideoBtn = document.getElementById('new-video-btn');
 // File upload handling
 uploadArea.addEventListener('click', () => videoInput.click());
 
+// Keyboard accessibility for upload area
+uploadArea.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault(); // Prevent default space scrolling
+        videoInput.click();
+    }
+});
+
 uploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();
     uploadArea.classList.add('drag-over');

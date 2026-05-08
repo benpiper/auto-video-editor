@@ -1,13 +1,54 @@
 import os
 import logging
 from typing import List, Tuple, Optional, Callable
-import moviepy.editor as mp
-from moviepy.editor import VideoFileClip, concatenate_videoclips
 import whisper
 from pydub import AudioSegment, silence
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def get_video_info(video_path: str) -> Tuple[Optional[float], Optional[Tuple[int, int]], bool]:
+    """
+    Get duration, dimensions, and audio presence using ffprobe.
+    Replaces MoviePy's VideoFileClip for simple metadata fetching to avoid loading overhead.
+    """
+    import subprocess
+    import json
+    try:
+        cmd = [
+            'ffprobe', '-v', 'error',
+            '-show_entries', 'format=duration:stream=width,height,codec_type',
+            '-of', 'json',
+            video_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+
+        if result.returncode != 0:
+            logging.error(f"ffprobe failed: {result.stderr}")
+            return None, None, False
+
+        info = json.loads(result.stdout)
+
+        # Get duration
+        duration = float(info.get('format', {}).get('duration', 0))
+
+        # Check streams
+        width = None
+        height = None
+        has_audio = False
+
+        for stream in info.get('streams', []):
+            codec_type = stream.get('codec_type')
+            if codec_type == 'video' and width is None:
+                width = stream.get('width')
+                height = stream.get('height')
+            elif codec_type == 'audio':
+                has_audio = True
+
+        return duration, (width, height) if width and height else None, has_audio
+    except Exception as e:
+        logging.error(f"Error getting video info: {e}")
+        return None, None, False
 
 def format_timestamp(seconds: float) -> str:
     """Convert seconds to HH:MM:SS format."""
@@ -18,18 +59,35 @@ def format_timestamp(seconds: float) -> str:
 
 
 def extract_audio(video_path: str, audio_path: str):
-    """Extracts audio from video file. Returns True if audio exists, False otherwise."""
+    """Extracts audio from video file using ffmpeg. Returns True if audio exists, False otherwise."""
+    import subprocess
     logging.info(f"Extracting audio from {video_path} to {audio_path}")
-    video = VideoFileClip(video_path)
     
-    if video.audio is None:
+    # Check if video has an audio stream
+    _, _, has_audio = get_video_info(video_path)
+    if not has_audio:
         logging.warning("Video has no audio track - skipping audio-based detection")
-        video.close()
         return False
-    
-    video.audio.write_audiofile(audio_path, verbose=False, logger=None)
-    video.close()
-    return True
+
+    try:
+        cmd = [
+            'ffmpeg', '-y', '-i', video_path,
+            '-vn',  # No video
+            '-acodec', 'pcm_s16le',  # WAV PCM format
+            '-ar', '44100',  # Sample rate
+            '-ac', '2',  # Stereo
+            audio_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+
+        if result.returncode != 0:
+            logging.error(f"Failed to extract audio: {result.stderr}")
+            return False
+
+        return True
+    except Exception as e:
+        logging.error(f"Error extracting audio: {e}")
+        return False
 
 def detect_silence(audio_path: str, min_silence_len: int = 2000, silence_thresh: int = -40) -> List[Tuple[float, float]]:
     """
@@ -258,7 +316,6 @@ def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]]
         List of paths to extracted segment files
     """
     import subprocess
-    import tempfile
     
     segment_files = []
     
@@ -619,12 +676,16 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
             logging.info(f"Total duration to be removed: {format_timestamp(total_removed_duration)}")
         
         # 5. Get Keep Intervals
-        video = VideoFileClip(working_video_path)  # Use transposed video if applicable
-        total_duration = video.duration
+        total_duration, original_size, _ = get_video_info(working_video_path)
+        if total_duration is None:
+            logging.error("Could not determine video duration. Aborting.")
+            return {'status': 'error', 'error': 'Could not determine video duration'}
         
         # Store original dimensions to preserve them
-        original_size = video.size
-        logging.info(f"Original video dimensions: {original_size[0]}x{original_size[1]} (width x height)")
+        if original_size:
+            logging.info(f"Original video dimensions: {original_size[0]}x{original_size[1]} (width x height)")
+        else:
+            logging.warning("Could not determine original video dimensions.")
         
         keep_intervals = invert_intervals(merged_remove_intervals, total_duration)
         
@@ -643,11 +704,9 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
                 import shutil
                 shutil.copy2(working_video_path, output_path)
                 logging.info(f"Copied original video to: {output_path}")
-                video.close()
                 # Continue to background removal below
             else:
                 logging.info("The video is already optimized. Exiting without re-encoding.")
-                video.close()
                 return {'status': 'skipped', 'transcript': transcript_text}
 
         logging.info(f"Cutting video. Keeping {len(keep_intervals)} segments.")
@@ -817,14 +876,6 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
 
                 
     finally:
-        # Cleanup video object if it exists
-        try:
-            if 'video' in locals():
-                video.close()
-                logging.debug("Closed video object")
-        except Exception as e:
-            logging.warning(f"Error closing video object: {e}")
-        
         # Cleanup temporary audio
         if os.path.exists(temp_audio_path):
             os.remove(temp_audio_path)

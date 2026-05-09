@@ -1,0 +1,4 @@
+## 2024-05-18 - Unsanitized Input in JSON API Parameters
+**Vulnerability:** The `/jobs` POST endpoint in `web_app/api.py` read `filename` and `bg_image` from a JSON payload and directly appended them to `UPLOAD_FOLDER` or checked via `os.path.isabs()`, exposing a path traversal vulnerability. Secondary endpoints like this often miss sanitization checks compared to primary file upload endpoints.
+**Learning:** In Flask REST APIs, inputs received via JSON request body parameters used for file operations must be independently sanitized using `secure_filename`. Relying only on primary upload endpoint validations allows attackers to bypass restrictions by crafting malicious JSON requests (e.g. `{"filename": "../../../../etc/passwd"}`).
+**Prevention:** Always apply `werkzeug.utils.secure_filename` on all client-provided strings that are eventually used in file path construction, regardless of whether they originate from form-data uploads or JSON body parameters.

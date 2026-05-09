@@ -1,0 +1,3 @@
+## 2026-05-09 - Remove moviepy Overhead for Metadata and Audio
+**Learning:** Using `moviepy.editor.VideoFileClip` just to fetch duration, dimensions, or extract audio introduces significant overhead because it loads heavy dependencies under the hood. For a 10m file it still takes ~0.07s but `ffprobe` or `ffmpeg` operations via `subprocess` handles it more efficiently and natively, avoiding the loading overhead entirely and being more consistent with the rest of our FFmpeg tooling.
+**Action:** Replace `VideoFileClip` usage with `ffprobe` for getting duration/dimensions and `ffmpeg` for extracting audio.

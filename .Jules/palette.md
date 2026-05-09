@@ -1,0 +1,3 @@
+## 2026-05-09 - Custom Interactive Div Accessibility
+**Learning:** When creating custom interactive elements like a drag-and-drop upload area using a `div` that acts as a button, it's critical to ensure it's fully accessible. This means adding `tabindex="0"` and `role="button"`, providing an explicit `aria-label`, binding a `keydown` listener for Enter/Space to replicate the click action, and ensuring keyboard focus is visible via `:focus-visible`.
+**Action:** Always explicitly handle keyboard accessibility attributes and events when designing interactive elements using non-semantic tags like `div` or `span`.

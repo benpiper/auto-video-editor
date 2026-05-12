@@ -82,6 +82,13 @@ header p {
     background: rgba(99, 102, 241, 0.1);
 }
 
+.upload-area:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.05);
+}
+
 .upload-prompt svg {
     color: var(--primary);
     margin-bottom: 1rem;

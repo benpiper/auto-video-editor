@@ -1,0 +1,4 @@
+## 2024-05-13 - Path Traversal in Secondary Endpoints
+**Vulnerability:** In the Flask API, the job creation endpoint (`/api/jobs`) accepted an unvalidated `filename` parameter via JSON, joining it with the upload directory. This allowed arbitrary file read/deletion or processing of files outside the upload directory via path traversal (e.g., `../../etc/passwd`).
+**Learning:** Secondary endpoints that receive filenames via client JSON requests must independently sanitize those inputs. Relying only on primary upload endpoint sanitization allows attackers to bypass restrictions via spoofed JSON payloads.
+**Prevention:** Always use `werkzeug.utils.secure_filename` to sanitize any user-supplied filename or path segment, regardless of whether it originates from a direct file upload or a JSON parameter, especially before joining it with a base directory path.

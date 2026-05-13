@@ -1,0 +1,3 @@
+## 2024-05-13 - Avoid Moviepy overhead for simple video file queries
+**Learning:** Initializing a `VideoFileClip` object in moviepy comes with noticeable performance overhead just for fetching metadata or pulling audio tracks, since it loads up complex parsing and processing functionality. Measurements showed native `ffprobe`/`ffmpeg` commandline calls run consistently faster when simply needing to pull stream dimensions, durations, or extracting an audio track to PCM format.
+**Action:** Always prefer using native `ffprobe` or `ffmpeg` commands via `subprocess` in Python for quick video metadata retrieval or simple stream extractions instead of loading the video explicitly through `moviepy.editor.VideoFileClip`.

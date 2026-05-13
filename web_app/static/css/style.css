@@ -72,6 +72,15 @@ header p {
     transition: all 0.3s ease;
 }
 
+.upload-area:focus-visible,
+.btn-primary:focus-visible,
+.btn-secondary:focus-visible,
+.param-item input:focus-visible,
+.param-item select:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 .upload-area:hover {
     border-color: var(--primary);
     background: rgba(99, 102, 241, 0.05);

@@ -1,8 +1,7 @@
 import os
 import logging
 from typing import List, Tuple, Optional, Callable
-import moviepy.editor as mp
-from moviepy.editor import VideoFileClip, concatenate_videoclips
+from moviepy.editor import VideoFileClip
 import whisper
 from pydub import AudioSegment, silence
 
@@ -19,17 +18,37 @@ def format_timestamp(seconds: float) -> str:
 
 def extract_audio(video_path: str, audio_path: str):
     """Extracts audio from video file. Returns True if audio exists, False otherwise."""
+    import subprocess
     logging.info(f"Extracting audio from {video_path} to {audio_path}")
-    video = VideoFileClip(video_path)
     
-    if video.audio is None:
-        logging.warning("Video has no audio track - skipping audio-based detection")
-        video.close()
+    try:
+        # Check if video has an audio track using ffprobe
+        probe_cmd = [
+            'ffprobe', '-i', video_path, '-show_streams',
+            '-select_streams', 'a', '-loglevel', 'error'
+        ]
+        result = subprocess.run(probe_cmd, capture_output=True, text=True, timeout=10)
+
+        if not result.stdout.strip():
+            logging.warning("Video has no audio track - skipping audio-based detection")
+            return False
+
+        # Extract audio using ffmpeg directly (faster than MoviePy)
+        extract_cmd = [
+            'ffmpeg', '-i', video_path, '-vn', '-acodec', 'pcm_s16le',
+            '-ar', '44100', '-ac', '2', '-y', audio_path
+        ]
+        subprocess.run(extract_cmd, capture_output=True, check=True, timeout=300)
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Error extracting audio with FFmpeg: {e.stderr if hasattr(e, 'stderr') else e}")
         return False
-    
-    video.audio.write_audiofile(audio_path, verbose=False, logger=None)
-    video.close()
-    return True
+    except subprocess.TimeoutExpired:
+        logging.error("Audio extraction timed out")
+        return False
+    except Exception as e:
+        logging.error(f"Error extracting audio: {e}")
+        return False
 
 def detect_silence(audio_path: str, min_silence_len: int = 2000, silence_thresh: int = -40) -> List[Tuple[float, float]]:
     """
@@ -619,11 +638,35 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
             logging.info(f"Total duration to be removed: {format_timestamp(total_removed_duration)}")
         
         # 5. Get Keep Intervals
-        video = VideoFileClip(working_video_path)  # Use transposed video if applicable
-        total_duration = video.duration
+        import subprocess
         
-        # Store original dimensions to preserve them
-        original_size = video.size
+        # Get duration using ffprobe
+        try:
+            dur_cmd = [
+                'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                '-of', 'default=noprint_wrappers=1:nokey=1', working_video_path
+            ]
+            dur_result = subprocess.run(dur_cmd, capture_output=True, text=True, check=True)
+            total_duration = float(dur_result.stdout.strip())
+        except Exception as e:
+            logging.warning(f"Error fetching duration with ffprobe, falling back to MoviePy: {e}")
+            video = VideoFileClip(working_video_path)
+            total_duration = video.duration
+            video.close()
+
+        # Get dimensions using ffprobe
+        try:
+            size_cmd = [
+                'ffprobe', '-v', 'error', '-select_streams', 'v:0',
+                '-show_entries', 'stream=width,height', '-of', 'csv=s=x:p=0', working_video_path
+            ]
+            size_result = subprocess.run(size_cmd, capture_output=True, text=True, check=True)
+            size_str = size_result.stdout.strip().split('x')
+            original_size = (int(size_str[0]), int(size_str[1]))
+        except Exception as e:
+            logging.warning(f"Error fetching dimensions with ffprobe: {e}")
+            original_size = (0, 0) # Fallback if we really can't get it
+
         logging.info(f"Original video dimensions: {original_size[0]}x{original_size[1]} (width x height)")
         
         keep_intervals = invert_intervals(merged_remove_intervals, total_duration)
@@ -643,11 +686,9 @@ def process_video(input_path: str, output_path: str, min_silence_len: int = 2000
                 import shutil
                 shutil.copy2(working_video_path, output_path)
                 logging.info(f"Copied original video to: {output_path}")
-                video.close()
                 # Continue to background removal below
             else:
                 logging.info("The video is already optimized. Exiting without re-encoding.")
-                video.close()
                 return {'status': 'skipped', 'transcript': transcript_text}
 
         logging.info(f"Cutting video. Keeping {len(keep_intervals)} segments.")

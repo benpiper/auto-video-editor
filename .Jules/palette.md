@@ -1,0 +1,3 @@
+## 2026-05-14 - Interactive Custom Elements Require Keyboard Handlers
+**Learning:** When using custom `div` elements as interactive buttons (like a drag-and-drop file upload area), relying solely on 'click' handlers breaks keyboard accessibility. Even with `tabindex` and `role="button"`, screen readers and keyboard users cannot activate the area without explicit `keydown` listeners for 'Enter' and 'Space'.
+**Action:** Always bind 'keydown' listeners (checking for 'Enter' and 'Space') alongside 'click' listeners for custom interactive elements, and ensure focus styles (`:focus-visible`) are present.

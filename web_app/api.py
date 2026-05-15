@@ -136,10 +136,12 @@ def create_job():
     data = request.json
     
     # Identify input file
+    # SECURITY FIX: Sanitize all file inputs to prevent path traversal vulnerabilities
     input_filename = data.get('filename')
     if not input_filename:
         return jsonify({'error': 'filename is required (from /upload)'}), 400
         
+    input_filename = secure_filename(input_filename)
     upload_folder = current_app.config['UPLOAD_FOLDER']
     input_path = os.path.join(upload_folder, input_filename)
     
@@ -150,17 +152,18 @@ def create_job():
     job_id = str(uuid.uuid4())
     
     # Basic params
-    filename = data.get('original_filename', input_filename)
+    original_filename = data.get('original_filename', input_filename)
+    filename = secure_filename(original_filename)
     
-    # Handle background image - simplified for API: assume path or previously uploaded
-    # For now, let's assume 'bg_image_path' if locally available, or they need to upload it separately?
-    # Let's keep it simple: allow absolute path for bg_image or uploaded filename
+    # Handle background image - check if it exists in uploads
     bg_image = data.get('bg_image')
-    if bg_image and not os.path.isabs(bg_image):
-        # Check if it exists in uploads
+    if bg_image:
+        bg_image = secure_filename(bg_image)
         bg_check = os.path.join(upload_folder, bg_image)
         if os.path.exists(bg_check):
             bg_image = bg_check
+        else:
+            bg_image = None
     
     params = {
         'min_silence': data.get('min_silence', 2000),

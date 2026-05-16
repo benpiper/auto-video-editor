@@ -1,0 +1,3 @@
+## 2026-05-16 - Avoid MoviePy VideoFileClip for Metadata Fetching
+**Learning:** Instantiating `VideoFileClip` from `moviepy` in Python is exceptionally slow because it parses the entire file and sets up heavy subprocesses, making it inefficient when all you need is metadata like duration, width, height, or to extract the audio stream.
+**Action:** When basic video metadata or audio extraction is needed without complex video manipulation, always prefer executing native `ffprobe` and `ffmpeg` commands via `subprocess.run`, which completely bypasses the loading overhead and provides substantial speedups.

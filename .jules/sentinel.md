@@ -1,0 +1,4 @@
+## 2024-05-16 - Prevent Path Traversal in Secondary Endpoints
+**Vulnerability:** Secondary API endpoint (`/api/jobs`) accepted an `input_filename` and `bg_image` via a JSON payload which were directly appended to an upload folder path without sanitization, leading to a path traversal and arbitrary file read/deletion vulnerability.
+**Learning:** Even if primary upload endpoints sanitize filenames during file upload (e.g., using `secure_filename(file.filename)`), secondary endpoints that take a filename parameter as text input must also independently sanitize it. Attackers can bypass file upload controls by crafting JSON payloads with malicious paths (like `../../../etc/passwd`).
+**Prevention:** Always apply `werkzeug.utils.secure_filename()` to any user-supplied filename parameter before appending it to a base directory, especially in secondary endpoints referencing previously uploaded files.

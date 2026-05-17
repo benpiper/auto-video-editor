@@ -1,0 +1,3 @@
+## 2025-02-20 - MoviePy Overhead for Metadata & Extraction
+**Learning:** Instantiating `moviepy.editor.VideoFileClip` solely to extract metadata (duration, resolution) or to extract audio introduces significant overhead compared to using native `ffprobe` and `ffmpeg` via Python's `subprocess`. While the difference in time may vary depending on file size and format, `subprocess` calls proved notably faster and eliminated the need to import a heavy library just for basic information retrieval.
+**Action:** Avoid loading large video processing libraries like MoviePy if the goal is only to fetch simple metadata or perform simple stream extraction. Use `ffprobe` or `ffmpeg` commands directly via `subprocess` instead.

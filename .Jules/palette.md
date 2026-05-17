@@ -1,0 +1,3 @@
+## 2024-05-24 - Custom File Upload Area Accessibility
+**Learning:** Custom file upload dropzones (`<div>` elements masking an `<input type="file">`) are a common pattern in this app but natively lack keyboard accessibility. Even if they accept drag-and-drop and mouse clicks, screen readers ignore them and keyboard users cannot trigger them without specific ARIA roles, tabindex, and keydown listeners.
+**Action:** When creating or modifying custom interactive elements (like `div`s acting as buttons), explicitly add `:focus-visible` styles matching the primary theme, ensure `tabindex="0"` and `role="button"` are set, and bind `keydown` listeners for 'Enter' and 'Space' alongside standard 'click' events to ensure full keyboard accessibility.

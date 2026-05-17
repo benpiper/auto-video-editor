@@ -140,6 +140,9 @@ def create_job():
     if not input_filename:
         return jsonify({'error': 'filename is required (from /upload)'}), 400
         
+    # Sanitize input filename to prevent path traversal
+    input_filename = secure_filename(input_filename)
+
     upload_folder = current_app.config['UPLOAD_FOLDER']
     input_path = os.path.join(upload_folder, input_filename)
     
@@ -157,8 +160,10 @@ def create_job():
     # Let's keep it simple: allow absolute path for bg_image or uploaded filename
     bg_image = data.get('bg_image')
     if bg_image and not os.path.isabs(bg_image):
+        # Sanitize relative bg_image path to prevent path traversal
+        bg_image_safe = secure_filename(bg_image)
         # Check if it exists in uploads
-        bg_check = os.path.join(upload_folder, bg_image)
+        bg_check = os.path.join(upload_folder, bg_image_safe)
         if os.path.exists(bg_check):
             bg_image = bg_check
     

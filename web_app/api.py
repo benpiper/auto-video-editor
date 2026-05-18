@@ -153,19 +153,22 @@ def create_job():
     job_id = str(uuid.uuid4())
     
     # Basic params
-    filename = data.get('original_filename', input_filename)
+    # Sanitize the original filename as it's used to construct the output path later
+    original_filename = data.get('original_filename', input_filename)
+    filename = secure_filename(original_filename) if original_filename else input_filename
     
-    # Handle background image - simplified for API: assume path or previously uploaded
-    # For now, let's assume 'bg_image_path' if locally available, or they need to upload it separately?
-    # Let's keep it simple: allow absolute path for bg_image or uploaded filename
+    # Handle background image
     bg_image = data.get('bg_image')
-    if bg_image and not os.path.isabs(bg_image):
-        # Sanitize relative bg_image path to prevent path traversal
-        bg_image_safe = secure_filename(bg_image)
+    if bg_image:
+        # 🛡️ Sentinel: Enforce strict sanitization on bg_image to prevent path traversal
+        # and arbitrary file deletion/read. Never trust absolute paths from the client.
+        bg_image_safe = secure_filename(os.path.basename(bg_image))
         # Check if it exists in uploads
         bg_check = os.path.join(upload_folder, bg_image_safe)
         if os.path.exists(bg_check):
             bg_image = bg_check
+        else:
+            bg_image = None
     
     params = {
         'min_silence': data.get('min_silence', 2000),

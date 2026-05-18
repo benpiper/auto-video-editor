@@ -200,16 +200,16 @@
             <!-- Progress Section -->
             <section id="progress-section" class="card hidden">
                 <h2>Processing Video</h2>
-                <div class="progress-bar">
+                <div class="progress-bar" id="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                     <div class="progress-fill" id="progress-fill"></div>
                 </div>
-                <p id="progress-message">Initializing...</p>
+                <p id="progress-message" aria-live="polite">Initializing...</p>
                 <div class="spinner"></div>
             </section>
 
             <!-- Download Section -->
             <section id="download-section" class="card hidden">
-                <h2>✅ Processing Complete!</h2>
+                <h2 id="download-heading" tabindex="-1">✅ Processing Complete!</h2>
                 <p id="download-message">Your edited video is ready to download.</p>
                 <button id="download-btn" class="btn-primary">Download Edited Video</button>
                 <button id="new-video-btn" class="btn-secondary">Process Another Video</button>

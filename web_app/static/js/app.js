@@ -182,11 +182,19 @@ function connectProgressStream() {
 function updateProgress(progress, message) {
     progressFill.style.width = `${progress}%`;
     progressMessage.textContent = message;
+    const progressBar = document.getElementById('progress-bar');
+    if (progressBar) {
+        progressBar.setAttribute('aria-valuenow', progress);
+    }
 }
 
 function showDownload() {
     progressSection.classList.add('hidden');
     downloadSection.classList.remove('hidden');
+    const heading = document.getElementById('download-heading');
+    if (heading) {
+        heading.focus();
+    }
 }
 
 // Download button

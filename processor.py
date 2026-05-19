@@ -3,7 +3,6 @@ import logging
 from typing import List, Tuple, Optional, Callable
 
 import whisper
-from pydub import AudioSegment, silence
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -47,7 +46,7 @@ def extract_audio(video_path: str, audio_path: str):
 
 def detect_silence(audio_path: str, min_silence_len: int = 2000, silence_thresh: int = -40) -> List[Tuple[float, float]]:
     """
-    Detects silence in audio file.
+    Detects silence in audio file using FFmpeg silencedetect.
     Args:
         audio_path: Path to audio file.
         min_silence_len: Minimum length of silence in milliseconds.
@@ -55,24 +54,63 @@ def detect_silence(audio_path: str, min_silence_len: int = 2000, silence_thresh:
     Returns:
         List of (start, end) tuples in seconds.
     """
+    import subprocess
+    import re
     logging.info("Detecting silence...")
-    audio = AudioSegment.from_file(audio_path)
-    # pydub returns intervals in milliseconds
-    silence_intervals_ms = silence.detect_silence(
-        audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh
-    )
-    # Convert to seconds
-    silence_intervals_sec = [(start / 1000, end / 1000) for start, end in silence_intervals_ms]
     
-    if silence_intervals_sec:
-        logging.info(f"Found {len(silence_intervals_sec)} silence intervals:")
-        for i, (start, end) in enumerate(silence_intervals_sec, 1):
-            duration = end - start
-            logging.info(f"  Silence {i}: {format_timestamp(start)} - {format_timestamp(end)} (duration: {duration:.2f}s)")
-    else:
-        logging.info("No silence intervals found.")
+    # Convert min_silence_len from milliseconds to seconds
+    min_silence_sec = min_silence_len / 1000.0
     
-    return silence_intervals_sec
+    try:
+        # Run FFmpeg with silencedetect filter
+        cmd = [
+            'ffmpeg',
+            '-i', audio_path,
+            '-af', f'silencedetect=noise={silence_thresh}dB:d={min_silence_sec}',
+            '-f', 'null',
+            '-'
+        ]
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=1800
+        )
+
+        # Parse silence detection from stderr
+        silence_intervals_sec = []
+        silence_start = None
+
+        for line in result.stderr.split('\n'):
+            if 'silencedetect' in line:
+                if 'silence_start' in line:
+                    match = re.search(r'silence_start:\s*([\d.]+)', line)
+                    if match:
+                        silence_start = float(match.group(1))
+                elif 'silence_end' in line and silence_start is not None:
+                    match = re.search(r'silence_end:\s*([\d.]+)', line)
+                    if match:
+                        silence_end = float(match.group(1))
+                        silence_intervals_sec.append((silence_start, silence_end))
+                        silence_start = None
+
+        if silence_intervals_sec:
+            logging.info(f"Found {len(silence_intervals_sec)} silence intervals:")
+            for i, (start, end) in enumerate(silence_intervals_sec, 1):
+                duration = end - start
+                logging.info(f"  Silence {i}: {format_timestamp(start)} - {format_timestamp(end)} (duration: {duration:.2f}s)")
+        else:
+            logging.info("No silence intervals found.")
+
+        return silence_intervals_sec
+
+    except subprocess.TimeoutExpired:
+        logging.error("Silence detection timed out")
+        return []
+    except Exception as e:
+        logging.error(f"Error detecting silence: {e}")
+        return []
 
 def detect_filler_words(audio_path: str, model_size: str = "large-v3-turbo", filler_words_list: List[str] = None) -> List[Tuple[float, float]]:
     """
@@ -120,7 +158,7 @@ def detect_filler_words_whisper(audio_path: str, model_size: str = "large-v3-tur
         for word in segment.get("words", []):
             word_count += 1
             word_text = word["word"].strip()
-            word_start = word["start"]
+            word["start"]
             
             # Log every word with progress
             #logging.info(f"  Word {word_count}/{total_words}: [{word_start:.1f}s] \"{word_text}\"")
@@ -272,7 +310,6 @@ def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]]
         List of paths to extracted segment files
     """
     import subprocess
-    import tempfile
     
     segment_files = []
     

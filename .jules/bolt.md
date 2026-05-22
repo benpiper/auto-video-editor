@@ -1,0 +1,3 @@
+## 2024-05-22 - FFmpeg native silencedetect performance boost
+**Learning:** Using FFmpeg natively for silence detection using the `silencedetect` filter avoids loading the entire audio file into memory in Python via `pydub`. This provides a significant performance improvement (~30s to ~2s for a 10 min audio file) and drastically reduces the overall processing bottleneck when performing static video editing operations.
+**Action:** Use native FFmpeg capabilities via `subprocess` for all possible media analysis tools to prevent blocking the Python main thread or loading overly large files into memory. Always measure before writing Python-bound analysis loops.

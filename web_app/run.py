@@ -22,4 +22,6 @@ if __name__ == '__main__':
     print("Press CTRL+C to stop")
     print("=" * 60)
     
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)
+    # 🛡️ Sentinel: Never run with debug=True when binding to 0.0.0.0,
+    # as it exposes the interactive Werkzeug debugger enabling RCE.
+    app.run(debug=False, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)

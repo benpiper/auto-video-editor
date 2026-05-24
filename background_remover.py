@@ -64,6 +64,8 @@ def download_model(model_name: str = 'mobilenetv3') -> Path:
     return model_path
 
 
+_rvm_models = {}
+
 def load_rvm_model(model_name: str = 'mobilenetv3', device: str = 'auto') -> torch.nn.Module:
     """
     Load RVM model.
@@ -75,9 +77,17 @@ def load_rvm_model(model_name: str = 'mobilenetv3', device: str = 'auto') -> tor
     Returns:
         Loaded RVM model
     """
+    global _rvm_models
+
     # Determine device
     if device == 'auto':
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    cache_key = f"{model_name}_{device}"
+
+    if cache_key in _rvm_models:
+        logging.info(f"Using cached RVM model '{model_name}' on {device}...")
+        return _rvm_models[cache_key]
     
     logging.info(f"Loading RVM model '{model_name}' on {device}...")
     
@@ -91,6 +101,7 @@ def load_rvm_model(model_name: str = 'mobilenetv3', device: str = 'auto') -> tor
         model.load_state_dict(torch.load(model_path, map_location=device))
         model = model.eval().to(device)
         logging.info("Model loaded successfully")
+        _rvm_models[cache_key] = model
         return model
     except Exception as e:
         logging.error(f"Failed to load model: {e}")

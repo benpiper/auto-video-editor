@@ -1,0 +1,3 @@
+## 2026-05-25 - Avoid Python Audio/Video Libraries for Simple Detection Tasks
+**Learning:** Using libraries like `pydub` (or `moviepy`) for simple tasks like silence detection requires loading the entire file into memory in Python, causing severe performance bottlenecks (~6.1s for a short video). Native `ffmpeg` filters (`silencedetect`) are dramatically faster (~0.36s, a >15x speedup) and use far fewer resources because they process the stream directly in C.
+**Action:** For simple metadata extraction, silence/noise detection, or basic cuts, always prefer calling `ffprobe` or `ffmpeg` via `subprocess` instead of bringing the heavy lifting into Python.

@@ -47,13 +47,13 @@
                     <div class="param-row" id="silence-options" style="margin-top: 0.5rem;">
                         <div class="param-item">
                             <label for="min-silence">Min Silence (ms)</label>
-                            <input type="number" id="min-silence" value="900" min="500" max="5000" step="100">
-                            <small>Lower = more aggressive</small>
+                            <input type="number" id="min-silence" value="900" min="500" max="5000" step="100" aria-describedby="min-silence-help">
+                            <small id="min-silence-help">Lower = more aggressive</small>
                         </div>
                         <div class="param-item">
                             <label for="silence-thresh">Threshold (dBFS)</label>
-                            <input type="number" id="silence-thresh" value="-64" min="-80" max="-20" step="1">
-                            <small>Higher = more aggressive</small>
+                            <input type="number" id="silence-thresh" value="-64" min="-80" max="-20" step="1" aria-describedby="silence-thresh-help">
+                            <small id="silence-thresh-help">Higher = more aggressive</small>
                         </div>
                     </div>
                 </div>
@@ -61,8 +61,8 @@
                 <div class="param-group">
                     <label for="filler-words">Filler Words (semicolon-separated)</label>
                     <input type="text" id="filler-words" value="um; uh; umm; uhh; er; just, you know; like, you know"
-                        placeholder="e.g. um; uh; like; you know">
-                    <small>Words or phrases to automatically remove</small>
+                        placeholder="e.g. um; uh; like; you know" aria-describedby="filler-words-help">
+                    <small id="filler-words-help">Words or phrases to automatically remove</small>
                 </div>
 
                 <div class="param-group">
@@ -121,9 +121,9 @@
                         </select>
                         
                         <!-- Background Removal Mode -->
-                        <div style="margin-top: 1rem;">
-                            <label>Background Removal Method</label>
-                            <div style="margin-top: 0.5rem;">
+                        <fieldset style="margin-top: 1rem; border: none; padding: 0;">
+                            <legend style="font-weight: 600; margin-bottom: 0.5rem;">Background Removal Method</legend>
+                            <div>
                                 <label style="display: block; margin-bottom: 0.5rem;">
                                     <input type="radio" name="bg-method" value="rvm" checked>
                                     RVM Matting (default)
@@ -133,7 +133,7 @@
                                     Person Segmentation (better for occlusions)
                                 </label>
                             </div>
-                        </div>
+                        </fieldset>
                         
                         <!-- Morphological Cleanup (RVM only) -->
                         <div id="morph-cleanup-section" style="margin-top: 1rem;">

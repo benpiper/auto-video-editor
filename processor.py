@@ -3,7 +3,8 @@ import logging
 from typing import List, Tuple, Optional, Callable
 
 import whisper
-from pydub import AudioSegment, silence
+import re
+import subprocess
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -56,13 +57,34 @@ def detect_silence(audio_path: str, min_silence_len: int = 2000, silence_thresh:
         List of (start, end) tuples in seconds.
     """
     logging.info("Detecting silence...")
-    audio = AudioSegment.from_file(audio_path)
-    # pydub returns intervals in milliseconds
-    silence_intervals_ms = silence.detect_silence(
-        audio, min_silence_len=min_silence_len, silence_thresh=silence_thresh
-    )
-    # Convert to seconds
-    silence_intervals_sec = [(start / 1000, end / 1000) for start, end in silence_intervals_ms]
+
+    # Run ffmpeg silencedetect
+    cmd = [
+        "ffmpeg", "-i", audio_path,
+        "-af", f"silencedetect=noise={silence_thresh}dB:d={min_silence_len/1000}",
+        "-f", "null", "-"
+    ]
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to detect silence: {e}")
+        return []
+
+    silence_starts = []
+    silence_ends = []
+
+    for line in result.stderr.splitlines():
+        if "silence_start" in line:
+            match = re.search(r"silence_start: ([\d\.]+)", line)
+            if match:
+                silence_starts.append(float(match.group(1)))
+        elif "silence_end" in line:
+            match = re.search(r"silence_end: ([\d\.]+)", line)
+            if match:
+                silence_ends.append(float(match.group(1)))
+
+    silence_intervals_sec = list(zip(silence_starts, silence_ends))
     
     if silence_intervals_sec:
         logging.info(f"Found {len(silence_intervals_sec)} silence intervals:")
@@ -272,7 +294,6 @@ def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]]
         List of paths to extracted segment files
     """
     import subprocess
-    import tempfile
     
     segment_files = []
     

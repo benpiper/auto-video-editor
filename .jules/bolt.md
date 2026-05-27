@@ -1,0 +1,3 @@
+## 2024-05-27 - Caching Large ML Models In-Memory
+**Learning:** This codebase frequently loads large machine learning models (like OpenAI Whisper and RobustVideoMatting) directly from disk for every processing job via functions like `whisper.load_model` and `torch.hub.load`. Without in-memory caching, each job incurs a severe performance bottleneck from loading these models repeatedly, which drastically slows down subsequent tasks.
+**Action:** Always verify if large ML models or heavy resources are instantiated globally or cached in memory (e.g., using a global dictionary cache `_whisper_models = {}`) to ensure subsequent requests can reuse the pre-loaded models rather than loading from disk every time.

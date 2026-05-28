@@ -1,0 +1,3 @@
+## 2026-05-28 - Avoid repeated loading of large ML models
+**Learning:** In this application's architecture, ML models like Whisper and RVM are loaded from disk repeatedly by default. This causes a significant performance bottleneck due to excessive I/O overhead.
+**Action:** When working with ML models (like Whisper in processor.py and RVM in background_remover.py), use `@functools.lru_cache` on the model-loading functions to ensure they are loaded into memory only once and reused across invocations.

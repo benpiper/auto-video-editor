@@ -55,7 +55,17 @@ def main():
         "--preset",
         type=str,
         default="medium",
-        choices=["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"],
+        choices=[
+            "ultrafast",
+            "superfast",
+            "veryfast",
+            "faster",
+            "fast",
+            "medium",
+            "slow",
+            "slower",
+            "veryslow",
+        ],
         help="Encoding preset (default: medium). Slower = better compression.",
     )
     parser.add_argument(
@@ -121,7 +131,7 @@ def main():
         default=None,
         help="Downsample ratio for RVM processing (default: auto-detect based on resolution).",
     )
-    
+
     # Segmentation options
     parser.add_argument(
         "--use-segmentation",
@@ -147,7 +157,7 @@ def main():
         default=5,
         help="Mask smoothing radius in pixels (default: 5, 0 to disable). Reduces flickering.",
     )
-    
+
     # RVM Morphological cleanup options
     parser.add_argument(
         "--rvm-erode",
@@ -177,8 +187,12 @@ def main():
     args = parser.parse_args()
 
     # Parse filler words
-    filler_words_list = [w.strip() for w in args.filler_words.split(';') if w.strip()] if args.filler_words else None
-    
+    filler_words_list = (
+        [w.strip() for w in args.filler_words.split(";") if w.strip()]
+        if args.filler_words
+        else None
+    )
+
     logging.info(f"Processing {args.input_file} -> {args.output_file}")
     process_video(
         args.input_file,

@@ -47,22 +47,22 @@
                     <div class="param-row" id="silence-options" style="margin-top: 0.5rem;">
                         <div class="param-item">
                             <label for="min-silence">Min Silence (ms)</label>
-                            <input type="number" id="min-silence" value="900" min="500" max="5000" step="100">
-                            <small>Lower = more aggressive</small>
+                            <input type="number" id="min-silence" aria-describedby="min-silence-help" value="900" min="500" max="5000" step="100">
+                            <small id="min-silence-help">Lower = more aggressive</small>
                         </div>
                         <div class="param-item">
                             <label for="silence-thresh">Threshold (dBFS)</label>
-                            <input type="number" id="silence-thresh" value="-64" min="-80" max="-20" step="1">
-                            <small>Higher = more aggressive</small>
+                            <input type="number" id="silence-thresh" aria-describedby="silence-thresh-help" value="-64" min="-80" max="-20" step="1">
+                            <small id="silence-thresh-help">Higher = more aggressive</small>
                         </div>
                     </div>
                 </div>
 
                 <div class="param-group">
                     <label for="filler-words">Filler Words (semicolon-separated)</label>
-                    <input type="text" id="filler-words" value="um; uh; umm; uhh; er; just, you know; like, you know"
+                    <input type="text" id="filler-words" aria-describedby="filler-words-help" value="um; uh; umm; uhh; er; just, you know; like, you know"
                         placeholder="e.g. um; uh; like; you know">
-                    <small>Words or phrases to automatically remove</small>
+                    <small id="filler-words-help">Words or phrases to automatically remove</small>
                 </div>
 
                 <div class="param-group">
@@ -72,17 +72,17 @@
                     </label>
                     <div class="param-item" style="margin-top: 0.5rem;">
                         <label for="freeze-duration">Min Duration (seconds)</label>
-                        <input type="number" id="freeze-duration" value="5" min="1" max="30" step="1">
-                        <small>Remove if screen is still for this long</small>
+                        <input type="number" id="freeze-duration" aria-describedby="freeze-duration-help" value="5" min="1" max="30" step="1">
+                        <small id="freeze-duration-help">Remove if screen is still for this long</small>
                     </div>
                 </div>
 
                 <div class="param-group">
                     <label>
-                        <input type="checkbox" id="remove-background">
+                        <input type="checkbox" id="remove-background" aria-describedby="remove-bg-help">
                         Remove Background (AI-powered)
                     </label>
-                    <small style="display: block; margin: 0.5rem 0 1rem 0; color: #666;">Uses Robust Video Matting - no
+                    <small id="remove-bg-help" style="display: block; margin: 0.5rem 0 1rem 0; color: #666;">Uses Robust Video Matting - no
                         green screen required! Model (~140MB) will download on first use.</small>
 
                     <div id="bg-options" class="param-row" style="display: none; margin-top: 0.5rem;">
@@ -108,8 +108,8 @@
 
                         <div class="param-item hidden" id="bg-image-group">
                             <label for="bg-image">Background Image</label>
-                            <input type="file" id="bg-image" accept="image/*">
-                            <small>Will be resized to match video</small>
+                            <input type="file" id="bg-image" aria-describedby="bg-image-help" accept="image/*">
+                            <small id="bg-image-help">Will be resized to match video</small>
                         </div>
                     </div>
 
@@ -121,8 +121,8 @@
                         </select>
                         
                         <!-- Background Removal Mode -->
-                        <div style="margin-top: 1rem;">
-                            <label>Background Removal Method</label>
+                        <fieldset style="border: none; padding: 0; margin-top: 1rem;">
+                            <legend style="font-weight: normal;">Background Removal Method</legend>
                             <div style="margin-top: 0.5rem;">
                                 <label style="display: block; margin-bottom: 0.5rem;">
                                     <input type="radio" name="bg-method" value="rvm" checked>
@@ -133,7 +133,7 @@
                                     Person Segmentation (better for occlusions)
                                 </label>
                             </div>
-                        </div>
+                        </fieldset>
                         
                         <!-- Morphological Cleanup (RVM only) -->
                         <div id="morph-cleanup-section" style="margin-top: 1rem;">
@@ -177,14 +177,14 @@
                             
                             <div class="param-item" style="margin-bottom: 0.75rem;">
                                 <label for="seg-threshold">Detection Threshold: <span id="threshold-val">0.5</span></label>
-                                <input type="range" id="seg-threshold" min="0" max="1" value="0.5" step="0.05">
-                                <small>Lower = more inclusive</small>
+                                <input type="range" id="seg-threshold" aria-describedby="seg-threshold-help" min="0" max="1" value="0.5" step="0.05">
+                                <small id="seg-threshold-help">Lower = more inclusive</small>
                             </div>
                             
                             <div class="param-item">
                                 <label for="seg-smooth">Mask Smoothing: <span id="smooth-val">5</span></label>
-                                <input type="range" id="seg-smooth" min="0" max="15" value="5" step="1">
-                                <small>Reduces flickering</small>
+                                <input type="range" id="seg-smooth" aria-describedby="seg-smooth-help" min="0" max="15" value="5" step="1">
+                                <small id="seg-smooth-help">Reduces flickering</small>
                             </div>
                         </div>
                     </div>

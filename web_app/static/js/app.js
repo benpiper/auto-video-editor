@@ -53,9 +53,12 @@ function handleFile(file) {
     selectedFile = file;
     const sizeMB = (file.size / 1024 / 1024).toFixed(2);
 
-    document.getElementById('file-info').innerHTML = `
-        <strong>Selected:</strong> ${file.name} (${sizeMB} MB)
-    `;
+    const fileInfo = document.getElementById('file-info');
+    fileInfo.innerHTML = '';
+    const strong = document.createElement('strong');
+    strong.textContent = 'Selected: ';
+    fileInfo.appendChild(strong);
+    fileInfo.appendChild(document.createTextNode(`${file.name} (${sizeMB} MB)`));
     document.getElementById('file-info').classList.remove('hidden');
     paramsSection.classList.remove('hidden');
 }

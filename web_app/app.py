@@ -219,4 +219,5 @@ def download(job_id):
 if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)
+    # 🛡️ Sentinel: Never use debug=True with host='0.0.0.0' to prevent Werkzeug interactive debugger RCE
+    app.run(debug=False, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)

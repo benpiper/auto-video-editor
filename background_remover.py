@@ -3,6 +3,7 @@ import logging
 import urllib.request
 from pathlib import Path
 from typing import Optional, Tuple
+from functools import lru_cache
 import torch
 import cv2
 import numpy as np
@@ -64,6 +65,7 @@ def download_model(model_name: str = 'mobilenetv3') -> Path:
     return model_path
 
 
+@lru_cache(maxsize=1)
 def load_rvm_model(model_name: str = 'mobilenetv3', device: str = 'auto') -> torch.nn.Module:
     """
     Load RVM model.

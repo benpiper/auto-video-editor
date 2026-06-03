@@ -1,6 +1,7 @@
 import os
 import logging
 import urllib.request
+import functools
 from pathlib import Path
 from typing import Optional, Tuple
 import torch
@@ -64,6 +65,20 @@ def download_model(model_name: str = 'mobilenetv3') -> Path:
     return model_path
 
 
+@functools.lru_cache(maxsize=1)
+def _get_rvm_model_cached(model_name: str, device: str, model_path: Path) -> torch.nn.Module:
+    """Cached RVM model loader to prevent repeated disk I/O."""
+    logging.info(f"Loading RVM model '{model_name}' on {device} into memory...")
+    try:
+        model = torch.hub.load("PeterL1n/RobustVideoMatting", model_name, trust_repo=True)
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model = model.eval().to(device)
+        logging.info("Model loaded successfully")
+        return model
+    except Exception as e:
+        logging.error(f"Failed to load model: {e}")
+        raise
+
 def load_rvm_model(model_name: str = 'mobilenetv3', device: str = 'auto') -> torch.nn.Module:
     """
     Load RVM model.
@@ -79,22 +94,12 @@ def load_rvm_model(model_name: str = 'mobilenetv3', device: str = 'auto') -> tor
     if device == 'auto':
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
-    logging.info(f"Loading RVM model '{model_name}' on {device}...")
+    logging.info(f"Getting RVM model '{model_name}' on {device}...")
     
     # Download model if needed
     model_path = download_model(model_name)
     
-    # Import the model architecture
-    # We'll use torch.hub to load the model architecture
-    try:
-        model = torch.hub.load("PeterL1n/RobustVideoMatting", model_name, trust_repo=True)
-        model.load_state_dict(torch.load(model_path, map_location=device))
-        model = model.eval().to(device)
-        logging.info("Model loaded successfully")
-        return model
-    except Exception as e:
-        logging.error(f"Failed to load model: {e}")
-        raise
+    return _get_rvm_model_cached(model_name, device, model_path)
 
 
 def hex_to_rgb(hex_color: str) -> Tuple[float, float, float]:

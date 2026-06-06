@@ -79,10 +79,10 @@
 
                 <div class="param-group">
                     <label>
-                        <input type="checkbox" id="remove-background">
+                        <input type="checkbox" id="remove-background" aria-describedby="remove-bg-help">
                         Remove Background (AI-powered)
                     </label>
-                    <small style="display: block; margin: 0.5rem 0 1rem 0; color: #666;">Uses Robust Video Matting - no
+                    <small id="remove-bg-help" style="display: block; margin: 0.5rem 0 1rem 0; color: #666;">Uses Robust Video Matting - no
                         green screen required! Model (~140MB) will download on first use.</small>
 
                     <div id="bg-options" class="param-row" style="display: none; margin-top: 0.5rem;">
@@ -121,8 +121,8 @@
                         </select>
                         
                         <!-- Background Removal Mode -->
-                        <div style="margin-top: 1rem;">
-                            <label>Background Removal Method</label>
+                        <fieldset style="border: none; padding: 0; margin-top: 1rem;">
+                            <legend style="margin-bottom: 0.5rem; font-weight: 600;">Background Removal Method</legend>
                             <div style="margin-top: 0.5rem;">
                                 <label style="display: block; margin-bottom: 0.5rem;">
                                     <input type="radio" name="bg-method" value="rvm" checked>
@@ -133,7 +133,7 @@
                                     Person Segmentation (better for occlusions)
                                 </label>
                             </div>
-                        </div>
+                        </fieldset>
                         
                         <!-- Morphological Cleanup (RVM only) -->
                         <div id="morph-cleanup-section" style="margin-top: 1rem;">

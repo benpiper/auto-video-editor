@@ -1,6 +1,7 @@
 import os
 import logging
 import urllib.request
+import functools
 from pathlib import Path
 from typing import Optional, Tuple
 import torch
@@ -64,6 +65,9 @@ def download_model(model_name: str = 'mobilenetv3') -> Path:
     return model_path
 
 
+# ⚡ Bolt: Cache the RVM model to eliminate redundant multi-second disk loads
+# across sequential background removal calls. maxsize=1 avoids OOM crashes.
+@functools.lru_cache(maxsize=1)
 def load_rvm_model(model_name: str = 'mobilenetv3', device: str = 'auto') -> torch.nn.Module:
     """
     Load RVM model.

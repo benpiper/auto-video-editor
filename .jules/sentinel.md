@@ -6,3 +6,7 @@
 **Vulnerability:** The `/jobs` endpoint in `web_app/api.py` accepted unsanitized `bg_image` absolute paths and `original_filename` parameters via JSON requests. An attacker could bypass the initial `/upload` sanitization by spoofing these JSON parameters to perform path traversal for arbitrary file deletion during job cleanup, or constructing malicious output paths.
 **Learning:** Initial sanitization at the primary upload boundary is insufficient if secondary execution endpoints blindly trust client-provided file paths or filenames in JSON payloads.
 **Prevention:** Always independently sanitize file names and paths using `werkzeug.utils.secure_filename` at every endpoint that handles them, especially when reconstructing paths or deleting files, regardless of previous upload steps. Never trust absolute paths or relative traversals provided by the client.
+## 2025-03-05 - Werkzeug Debugger RCE
+**Vulnerability:** The Flask application was bound to `host='0.0.0.0'` with `debug=True`, exposing the Werkzeug interactive debugger to all network interfaces and enabling unauthenticated remote code execution.
+**Learning:** Development tools that provide interactive shells or debuggers must never be exposed to public or non-loopback network interfaces, as they provide built-in RCE by design.
+**Prevention:** Always ensure `debug=False` when binding a Flask application to `0.0.0.0` or deploy the application using a production WSGI server instead of the built-in development server.

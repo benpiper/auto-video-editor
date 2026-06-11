@@ -6,6 +6,7 @@ from typing import Optional, Tuple
 import torch
 import cv2
 import numpy as np
+import functools
 from moviepy.editor import VideoFileClip
 
 # Configure logging
@@ -64,6 +65,7 @@ def download_model(model_name: str = 'mobilenetv3') -> Path:
     return model_path
 
 
+@functools.lru_cache(maxsize=1)
 def load_rvm_model(model_name: str = 'mobilenetv3', device: str = 'auto') -> torch.nn.Module:
     """
     Load RVM model.

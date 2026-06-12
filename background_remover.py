@@ -4,6 +4,7 @@ import urllib.request
 from pathlib import Path
 from typing import Optional, Tuple
 import torch
+import functools
 import cv2
 import numpy as np
 from moviepy.editor import VideoFileClip
@@ -64,6 +65,7 @@ def download_model(model_name: str = 'mobilenetv3') -> Path:
     return model_path
 
 
+@functools.lru_cache(maxsize=1)
 def load_rvm_model(model_name: str = 'mobilenetv3', device: str = 'auto') -> torch.nn.Module:
     """
     Load RVM model.

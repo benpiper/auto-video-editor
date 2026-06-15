@@ -6,3 +6,12 @@
 **Vulnerability:** The `/jobs` endpoint in `web_app/api.py` accepted unsanitized `bg_image` absolute paths and `original_filename` parameters via JSON requests. An attacker could bypass the initial `/upload` sanitization by spoofing these JSON parameters to perform path traversal for arbitrary file deletion during job cleanup, or constructing malicious output paths.
 **Learning:** Initial sanitization at the primary upload boundary is insufficient if secondary execution endpoints blindly trust client-provided file paths or filenames in JSON payloads.
 **Prevention:** Always independently sanitize file names and paths using `werkzeug.utils.secure_filename` at every endpoint that handles them, especially when reconstructing paths or deleting files, regardless of previous upload steps. Never trust absolute paths or relative traversals provided by the client.
+## 2025-11-26 - Remote Code Execution via Werkzeug Debugger
+**Vulnerability:** The Flask application was configured with `app.run(debug=True, host='0.0.0.0')` in both `web_app/app.py` and `web_app/run.py`.
+**Learning:** Binding the Flask development server to `0.0.0.0` with `debug=True` exposes the Werkzeug interactive debugger to any network interface. This allows arbitrary Python code execution from the browser, leading to immediate Remote Code Execution (RCE).
+**Prevention:** Always ensure `debug=False` is set when binding to public interfaces (`host='0.0.0.0'`).
+
+## 2025-11-26 - Unhandled Exception DoS via Malformed Form Data
+**Vulnerability:** The `/upload` route performed inline type casting (e.g., `int()`, `float()`) on `request.form.get()` inputs without a `try...except ValueError` block.
+**Learning:** Attackers can send malformed strings to trigger unhandled `ValueError` exceptions, causing 500 Internal Server Errors. This exposes application state and could be leveraged for Denial of Service (DoS).
+**Prevention:** Always wrap explicit type conversions of user-supplied data in `try...except ValueError` blocks to gracefully handle malformed inputs.

@@ -1,0 +1,3 @@
+## 2025-02-14 - Cache Large ML Models in Memory
+**Learning:** Instantiating large ML models (like OpenAI Whisper and RobustVideoMatting) multiple times within the same process leads to significant performance degradation due to repeated disk reading, memory allocation, and model initialization overhead.
+**Action:** Use `functools.lru_cache(maxsize=1)` on the model loading functions to globally cache exactly one instance of each large model in memory, ensuring fast reuse across consecutive operations while guarding against potential Out-Of-Memory (OOM) issues from caching multiple large models.

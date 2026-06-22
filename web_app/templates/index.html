@@ -61,8 +61,8 @@
                 <div class="param-group">
                     <label for="filler-words">Filler Words (semicolon-separated)</label>
                     <input type="text" id="filler-words" value="um; uh; umm; uhh; er; just, you know; like, you know"
-                        placeholder="e.g. um; uh; like; you know">
-                    <small>Words or phrases to automatically remove</small>
+                        placeholder="e.g. um; uh; like; you know" aria-describedby="filler-words-help">
+                    <small id="filler-words-help">Words or phrases to automatically remove</small>
                 </div>
 
                 <div class="param-group">
@@ -121,8 +121,8 @@
                         </select>
                         
                         <!-- Background Removal Mode -->
-                        <div style="margin-top: 1rem;">
-                            <label>Background Removal Method</label>
+                        <fieldset class="param-group" style="margin-top: 1rem; border: none; padding: 0; margin-left: 0; margin-right: 0;">
+                            <legend>Background Removal Method</legend>
                             <div style="margin-top: 0.5rem;">
                                 <label style="display: block; margin-bottom: 0.5rem;">
                                     <input type="radio" name="bg-method" value="rvm" checked>
@@ -133,7 +133,7 @@
                                     Person Segmentation (better for occlusions)
                                 </label>
                             </div>
-                        </div>
+                        </fieldset>
                         
                         <!-- Morphological Cleanup (RVM only) -->
                         <div id="morph-cleanup-section" style="margin-top: 1rem;">

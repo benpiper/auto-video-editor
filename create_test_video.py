@@ -1,7 +1,6 @@
 import numpy as np
 import moviepy.editor as mp
 from moviepy.audio.AudioClip import AudioArrayClip
-import os
 
 
 def create_tone(duration, freq=440, volume=0.5, fps=44100):

@@ -22,4 +22,5 @@ if __name__ == '__main__':
     print("Press CTRL+C to stop")
     print("=" * 60)
     
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)
+    # SECURITY: Never run with debug=True when bound to 0.0.0.0 to prevent exposing the Werkzeug debugger (RCE risk).
+    app.run(debug=False, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)

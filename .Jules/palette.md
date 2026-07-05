@@ -5,3 +5,7 @@
 ## 2025-05-18 - Dynamic UI State Context Loss
 **Learning:** Dynamic DOM section swaps (like hiding a progress bar and showing a completion section) cause loss of context and leave keyboard/screen reader users stranded without an anchor point.
 **Action:** When dynamically swapping major UI sections, explicitly move focus to a newly revealed heading by adding `tabindex="-1"` and calling `.focus()`. Furthermore, use native ARIA roles (e.g. `role="progressbar"`) and `aria-live="polite"` to ensure progress transitions are accessible.
+
+## 2025-05-18 - Form Semantic Structure
+**Learning:** Screen readers may not announce `<small>` helper text unassociated with inputs, and `<label>` around generic `<div>` for radio buttons is structurally invalid and not grouped properly.
+**Action:** Always link helper text using `aria-describedby` and wrap radio groups in `<fieldset>` with a semantic `<legend>` styled identically using inline CSS `border: none; padding: 0; margin: 0;`.

@@ -35,7 +35,6 @@ def create_test_video(output_path="test_video.mp4"):
     )
     audio_clip = AudioArrayClip(full_audio_arr, fps=audio_fps)
 
-    duration = audio_clip.duration
 
     # Create a visual clip (just a color screen with text maybe, or changing colors)
     # Let's make it change colors to visualize cuts

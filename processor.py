@@ -120,7 +120,7 @@ def detect_filler_words_whisper(audio_path: str, model_size: str = "large-v3-tur
         for word in segment.get("words", []):
             word_count += 1
             word_text = word["word"].strip()
-            word_start = word["start"]
+            word["start"]
             
             # Log every word with progress
             #logging.info(f"  Word {word_count}/{total_words}: [{word_start:.1f}s] \"{word_text}\"")
@@ -272,7 +272,6 @@ def extract_segments_ffmpeg(input_path: str, segments: List[Tuple[float, float]]
         List of paths to extracted segment files
     """
     import subprocess
-    import tempfile
     
     segment_files = []
     

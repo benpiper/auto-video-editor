@@ -1,6 +1,7 @@
 import os
 import logging
 from typing import List, Tuple, Optional, Callable
+import functools
 
 import whisper
 from pydub import AudioSegment, silence
@@ -82,14 +83,20 @@ def detect_filler_words(audio_path: str, model_size: str = "large-v3-turbo", fil
     """
     return detect_filler_words_whisper(audio_path, model_size, filler_words_list)
 
+@functools.lru_cache(maxsize=1)
+def _get_whisper_model(model_size: str):
+    """Caches the Whisper model to avoid reloading it from disk repeatedly."""
+    logging.info(f"Loading Whisper model ({model_size}) into memory cache...")
+    return whisper.load_model(model_size)
+
 def detect_filler_words_whisper(audio_path: str, model_size: str = "large-v3-turbo", filler_words_list: List[str] = None) -> List[Tuple[float, float]]:
     """
     Detects filler words using standard Whisper.
     Returns:
         Tuple of (List of (start, end) tuples, transcript string).
     """
-    logging.info(f"Loading Whisper model ({model_size})...")
-    model = whisper.load_model(model_size)
+    logging.info(f"Retrieving Whisper model ({model_size})...")
+    model = _get_whisper_model(model_size)
     logging.info("Transcribing audio for filler word detection...")
     # We use a prompt to encourage transcribing filler words if possible, though Whisper is trained to remove them.
     # Sometimes standard transcription removes them. We can try to rely on word-level timestamps.

@@ -222,7 +222,7 @@ def segment_person_from_video(
             # Convert mask to alpha channel
             alpha = (mask_3ch[:, :, 0] * 255).astype(np.uint8)
             # Create RGBA
-            output_rgba = np.dstack([output_rgb, alpha])
+            np.dstack([output_rgb, alpha])
             # Convert to BGR for OpenCV
             output_bgr = cv2.cvtColor(output_rgb, cv2.COLOR_RGB2BGR)
             output_bgra = np.dstack([output_bgr, alpha])

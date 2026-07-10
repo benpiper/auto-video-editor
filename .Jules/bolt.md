@@ -1,3 +1,6 @@
 ## 2024-05-18 - Replacing moviepy with ffprobe/ffmpeg subprocess
 **Learning:** Instantiating `VideoFileClip` from `moviepy.editor` introduces significant performance overhead when used solely to check if a video has an audio stream, or to read the duration and size of the video, as it initializes the full subclip and PyGame dependencies. By using raw `subprocess` calls to `ffprobe` (reading from `-of json`) and `ffmpeg`, we can gather properties and perform extractions in <100ms compared to `moviepy`'s >300ms overhead.
 **Action:** When extracting audio, or querying video metadata like `duration` and `size`, favor `ffprobe -show_entries` rather than instantiating `moviepy` objects if `moviepy` is not otherwise needed. Be sure to handle cleanup of original code using `.close()` if replacing those initializations.
+## 2026-07-10 - Globally Caching Large ML Models
+**Learning:** Large ML models (e.g., OpenAI Whisper and RVM) introduce severe performance bottlenecks from repeated disk loading during processing if initialized per-request. Caching them globally is required, but using standard dictionaries risks Out-Of-Memory (OOM) errors over time.
+**Action:** Use `functools.lru_cache(maxsize=1)` on model loading functions to preserve memory limits while eliminating redundant disk I/O.

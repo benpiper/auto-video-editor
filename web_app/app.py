@@ -57,33 +57,36 @@ def upload_video():
     file.save(input_path)
     
     # Get parameters
-    params = {
-        'min_silence': int(request.form.get('min_silence', 2000)),
-        'silence_thresh': int(request.form.get('silence_thresh', -63)),
-        'remove_silence': request.form.get('remove_silence') == 'true',
-        'crossfade': float(request.form.get('crossfade', 0.2)),
-        'bitrate': request.form.get('bitrate', '5000k'),
-        'preset': request.form.get('preset', 'medium'),
-        'use_crf': request.form.get('use_crf') == 'true',
-        'crf': int(request.form.get('crf', 18)),
-        'filler_words': [w.strip() for w in request.form.get('filler_words', '').split(';') if w.strip()],
-        'remove_freeze': request.form.get('remove_freeze') == 'true',
-        'freeze_duration': float(request.form.get('freeze_duration', 5)),
-        'remove_background': request.form.get('remove_background') == 'true',
-        'bg_color': request.form.get('bg_color', 'green'),
-        'bg_image': None,
-        'rvm_model': request.form.get('rvm_model', 'mobilenetv3'),
-        # Morphological cleanup
-        'rvm_erode': int(request.form.get('rvm_erode', 0)),
-        'rvm_dilate': int(request.form.get('rvm_dilate', 0)),
-        'rvm_median': int(request.form.get('rvm_median', 0)),
-        'rvm_blur': int(request.form.get('rvm_blur', 0)),
-        # Segmentation
-        'use_segmentation': request.form.get('use_segmentation') == 'true',
-        'seg_model': request.form.get('seg_model', 'general'),
-        'seg_threshold': float(request.form.get('seg_threshold', 0.5)),
-        'seg_smooth': int(request.form.get('seg_smooth', 5)),
-    }
+    try:
+        params = {
+            'min_silence': int(request.form.get('min_silence', 2000)),
+            'silence_thresh': int(request.form.get('silence_thresh', -63)),
+            'remove_silence': request.form.get('remove_silence') == 'true',
+            'crossfade': float(request.form.get('crossfade', 0.2)),
+            'bitrate': request.form.get('bitrate', '5000k'),
+            'preset': request.form.get('preset', 'medium'),
+            'use_crf': request.form.get('use_crf') == 'true',
+            'crf': int(request.form.get('crf', 18)),
+            'filler_words': [w.strip() for w in request.form.get('filler_words', '').split(';') if w.strip()],
+            'remove_freeze': request.form.get('remove_freeze') == 'true',
+            'freeze_duration': float(request.form.get('freeze_duration', 5)),
+            'remove_background': request.form.get('remove_background') == 'true',
+            'bg_color': request.form.get('bg_color', 'green'),
+            'bg_image': None,
+            'rvm_model': request.form.get('rvm_model', 'mobilenetv3'),
+            # Morphological cleanup
+            'rvm_erode': int(request.form.get('rvm_erode', 0)),
+            'rvm_dilate': int(request.form.get('rvm_dilate', 0)),
+            'rvm_median': int(request.form.get('rvm_median', 0)),
+            'rvm_blur': int(request.form.get('rvm_blur', 0)),
+            # Segmentation
+            'use_segmentation': request.form.get('use_segmentation') == 'true',
+            'seg_model': request.form.get('seg_model', 'general'),
+            'seg_threshold': float(request.form.get('seg_threshold', 0.5)),
+            'seg_smooth': int(request.form.get('seg_smooth', 5)),
+        }
+    except ValueError:
+        return jsonify({'error': 'Invalid parameter format'}), 400
     
     # Handle background image upload if provided
     if 'bg_image' in request.files and request.files['bg_image'].filename:
@@ -219,4 +222,5 @@ def download(job_id):
 if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)
+    # 🛡️ Sentinel: Setting debug=False to prevent Werkzeug RCE when bound to 0.0.0.0
+    app.run(debug=False, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)

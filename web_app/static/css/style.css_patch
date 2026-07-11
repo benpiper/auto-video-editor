@@ -1,0 +1,22 @@
+<<<<<<< SEARCH
+.param-group>label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}
+=======
+.param-group>label,
+.param-group>legend {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}
+
+fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+>>>>>>> REPLACE

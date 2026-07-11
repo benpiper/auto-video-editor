@@ -1,0 +1,29 @@
+--- web_app/static/css/style.css
++++ web_app/static/css/style.css
+@@ -107,6 +107,13 @@
+     margin-bottom: 1.5rem;
+ }
+
++.param-group>legend {
++    display: block;
++    font-weight: 600;
++    margin-bottom: 0.5rem;
++    color: var(--text);
++}
++
+ .param-group>label {
+     display: block;
+     font-weight: 600;
+@@ -114,6 +121,12 @@
+     color: var(--text);
+ }
+
++fieldset {
++    border: none;
++    padding: 0;
++    margin: 0;
++}
++
+ .param-row {
+     display: flex;
+     gap: 1rem;

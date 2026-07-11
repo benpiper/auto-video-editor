@@ -1,0 +1,23 @@
+--- web_app/templates/index.html
++++ web_app/templates/index.html
+@@ -122,17 +122,17 @@
+
+                         <!-- Background Removal Mode -->
+-                        <div style="margin-top: 1rem;">
+-                            <label>Background Removal Method</label>
++                        <fieldset style="margin-top: 1rem;" class="param-group">
++                            <legend>Background Removal Method</legend>
+                             <div style="margin-top: 0.5rem;">
+                                 <label style="display: block; margin-bottom: 0.5rem;">
+                                     <input type="radio" name="bg-method" value="rvm" checked>
+                                     RVM Matting (default)
+                                 </label>
+                                 <label style="display: block;">
+                                     <input type="radio" name="bg-method" value="segmentation">
+                                     Person Segmentation (better for occlusions)
+                                 </label>
+                             </div>
+-                        </div>
++                        </fieldset>
+
+                         <!-- Morphological Cleanup (RVM only) -->

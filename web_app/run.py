@@ -6,7 +6,6 @@ Simple web frontend for video processing
 
 if __name__ == '__main__':
     import os
-    import sys
     
     # Ensure we're in the right directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -18,7 +17,7 @@ if __name__ == '__main__':
     print("=" * 60)
     print("Auto Video Editor - Web Interface")
     print("=" * 60)
-    print(f"Starting server on http://localhost:5000")
+    print("Starting server on http://localhost:5000")
     print("Press CTRL+C to stop")
     print("=" * 60)
     

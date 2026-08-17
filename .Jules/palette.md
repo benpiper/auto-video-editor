@@ -5,3 +5,7 @@
 ## 2025-05-18 - Dynamic UI State Context Loss
 **Learning:** Dynamic DOM section swaps (like hiding a progress bar and showing a completion section) cause loss of context and leave keyboard/screen reader users stranded without an anchor point.
 **Action:** When dynamically swapping major UI sections, explicitly move focus to a newly revealed heading by adding `tabindex="-1"` and calling `.focus()`. Furthermore, use native ARIA roles (e.g. `role="progressbar"`) and `aria-live="polite"` to ensure progress transitions are accessible.
+
+## 2026-08-17 - Radio Button Accessibility
+**Learning:** Generic `div` containers with text labels fail to provide semantic grouping for radio buttons to screen readers.
+**Action:** Use `<fieldset>` and `<legend>` to semantically group radio buttons for screen reader users, while using inline CSS (`border: none; padding: 0;`) to maintain the original visual design system.

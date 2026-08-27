@@ -1,0 +1,4 @@
+## 2026-08-27 - Werkzeug Interactive Debugger RCE
+**Vulnerability:** The Flask application was running with `debug=True` and binding to all interfaces (`host='0.0.0.0'`). This exposes the Werkzeug interactive debugger publicly, allowing unauthenticated attackers to execute arbitrary Python code (RCE) on the server.
+**Learning:** Development configurations like `debug=True` can have severe security implications if accidentally left enabled in production or exposed to public networks. The Flask interactive debugger is a powerful tool that is incredibly dangerous if accessible remotely.
+**Prevention:** Never enable Flask's `debug=True` when binding to `0.0.0.0` or in any non-local development environment. Use environment variables (e.g., `FLASK_DEBUG=0`, `FLASK_ENV=production`) to strictly control debugger activation and ensure it defaults to off.

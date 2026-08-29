@@ -1,0 +1,4 @@
+## 2026-08-29 - Werkzeug Interactive Debugger Remote Code Execution
+**Vulnerability:** The Flask application was bound to all interfaces (`host='0.0.0.0'`) with development mode enabled (`debug=True`). This exposes the Werkzeug interactive debugger to the public network, allowing unauthenticated Remote Code Execution (RCE) by executing arbitrary Python code through the debugger console.
+**Learning:** Development configurations like `debug=True` are extremely dangerous when exposed outside localhost. Even in local testing environments or Docker containers, binding to `0.0.0.0` with debug enabled opens the system up to immediate compromise if the port is exposed.
+**Prevention:** Never use `debug=True` when `host='0.0.0.0'` or in any production-like environment. Enforce this via environment variables instead of hardcoding `debug=True` in the application entrypoints.

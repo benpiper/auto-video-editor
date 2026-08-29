@@ -1,5 +1,6 @@
 import os
 import logging
+import functools
 import urllib.request
 from pathlib import Path
 from typing import Optional, Tuple
@@ -64,9 +65,12 @@ def download_model(model_name: str = 'mobilenetv3') -> Path:
     return model_path
 
 
+@functools.lru_cache(maxsize=1)
 def load_rvm_model(model_name: str = 'mobilenetv3', device: str = 'auto') -> torch.nn.Module:
     """
     Load RVM model.
+    Performance Optimization: Cached globally in memory to prevent severe bottlenecks
+    from repeated disk loading and guard against OOM issues.
     
     Args:
         model_name: Model variant ('mobilenetv3' or 'resnet50')

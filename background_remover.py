@@ -21,6 +21,8 @@ MODEL_URLS = {
 CACHE_DIR = Path.home() / '.cache' / 'auto-video-editor' / 'rvm_models'
 
 
+import functools
+
 def download_model(model_name: str = 'mobilenetv3') -> Path:
     """
     Download RVM model if not already cached.
@@ -64,6 +66,9 @@ def download_model(model_name: str = 'mobilenetv3') -> Path:
     return model_path
 
 
+# Optimization: Globally cache the RVM model in memory to prevent severe
+# performance bottlenecks and potential OOM issues from repeated disk loading.
+@functools.lru_cache(maxsize=1)
 def load_rvm_model(model_name: str = 'mobilenetv3', device: str = 'auto') -> torch.nn.Module:
     """
     Load RVM model.

@@ -8,6 +8,16 @@ from pydub import AudioSegment, silence
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+import functools
+
+# Optimization: Globally cache the Whisper model in memory to prevent severe
+# performance bottlenecks and potential OOM issues from repeated disk loading.
+@functools.lru_cache(maxsize=1)
+def load_whisper_model(model_size: str):
+    logging.info(f"Loading Whisper model ({model_size})...")
+    return whisper.load_model(model_size)
+
+
 def format_timestamp(seconds: float) -> str:
     """Convert seconds to HH:MM:SS format."""
     hours = int(seconds // 3600)
@@ -88,8 +98,7 @@ def detect_filler_words_whisper(audio_path: str, model_size: str = "large-v3-tur
     Returns:
         Tuple of (List of (start, end) tuples, transcript string).
     """
-    logging.info(f"Loading Whisper model ({model_size})...")
-    model = whisper.load_model(model_size)
+    model = load_whisper_model(model_size)
     logging.info("Transcribing audio for filler word detection...")
     # We use a prompt to encourage transcribing filler words if possible, though Whisper is trained to remove them.
     # Sometimes standard transcription removes them. We can try to rely on word-level timestamps.

@@ -121,8 +121,8 @@
                         </select>
                         
                         <!-- Background Removal Mode -->
-                        <div style="margin-top: 1rem;">
-                            <label>Background Removal Method</label>
+                        <fieldset style="margin-top: 1rem; border: none; padding: 0; margin: 0;">
+                            <legend style="font-weight: 600; margin-bottom: 0.5rem;">Background Removal Method</legend>
                             <div style="margin-top: 0.5rem;">
                                 <label style="display: block; margin-bottom: 0.5rem;">
                                     <input type="radio" name="bg-method" value="rvm" checked>
@@ -133,7 +133,7 @@
                                     Person Segmentation (better for occlusions)
                                 </label>
                             </div>
-                        </div>
+                        </fieldset>
                         
                         <!-- Morphological Cleanup (RVM only) -->
                         <div id="morph-cleanup-section" style="margin-top: 1rem;">
@@ -194,25 +194,25 @@
                     <p><strong>Note:</strong> Video quality and bitrate will automatically match your source video.</p>
                 </div>
 
-                <button id="process-btn" class="btn-primary">Start Processing</button>
+                <button id="process-btn" class="btn-primary" aria-label="Start Processing Video">Start Processing</button>
             </section>
 
             <!-- Progress Section -->
-            <section id="progress-section" class="card hidden">
-                <h2>Processing Video</h2>
-                <div class="progress-bar" id="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <section id="progress-section" class="card hidden" aria-live="polite">
+                <h2 tabindex="-1" id="progress-heading">Processing Video</h2>
+                <div class="progress-bar" id="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="progress-heading">
                     <div class="progress-fill" id="progress-fill"></div>
                 </div>
                 <p id="progress-message" aria-live="polite">Initializing...</p>
-                <div class="spinner"></div>
+                <div class="spinner" role="status" aria-label="Loading"></div>
             </section>
 
             <!-- Download Section -->
             <section id="download-section" class="card hidden">
                 <h2 id="download-heading" tabindex="-1">✅ Processing Complete!</h2>
                 <p id="download-message">Your edited video is ready to download.</p>
-                <button id="download-btn" class="btn-primary">Download Edited Video</button>
-                <button id="new-video-btn" class="btn-secondary">Process Another Video</button>
+                <button id="download-btn" class="btn-primary" aria-label="Download Edited Video">Download Edited Video</button>
+                <button id="new-video-btn" class="btn-secondary" aria-label="Process Another Video">Process Another Video</button>
             </section>
         </main>
 

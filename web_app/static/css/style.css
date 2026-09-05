@@ -195,7 +195,7 @@ input[type="range"] {
     color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:not(:disabled):hover {
     background: var(--primary-dark);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
@@ -206,8 +206,15 @@ input[type="range"] {
     color: var(--text);
 }
 
-.btn-secondary:hover {
+.btn-secondary:not(:disabled):hover {
     background: #475569;
+}
+
+button:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .progress-bar {

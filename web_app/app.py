@@ -15,7 +15,11 @@ from processor import process_video
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)
+# 🛡️ Sentinel: Restrict CORS origins to prevent Cross-Origin Request Forgery (CSRF)
+# and unauthorized access to the API from external domains.
+# Load from ALLOWED_ORIGINS environment variable for production readiness.
+allowed_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5000,http://127.0.0.1:5000").split(",")
+CORS(app, resources={r"/*": {"origins": allowed_origins}})
 import api
 import swagger
 

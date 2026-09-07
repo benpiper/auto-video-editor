@@ -18,8 +18,9 @@ if __name__ == '__main__':
     print("=" * 60)
     print("Auto Video Editor - Web Interface")
     print("=" * 60)
-    print(f"Starting server on http://localhost:5000")
+    print("Starting server on http://localhost:5000")
     print("Press CTRL+C to stop")
     print("=" * 60)
     
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)
+    # 🛡️ Sentinel: Disabled debug mode on 0.0.0.0 to prevent RCE vulnerability
+    app.run(debug=False, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)

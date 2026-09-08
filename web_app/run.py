@@ -22,4 +22,6 @@ if __name__ == '__main__':
     print("Press CTRL+C to stop")
     print("=" * 60)
     
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)
+    # 🛡️ Sentinel: Disable debug mode on 0.0.0.0 to prevent Werkzeug RCE
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(debug=debug_mode, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)

@@ -219,4 +219,7 @@ def download(job_id):
 if __name__ == '__main__':
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['OUTPUT_FOLDER'], exist_ok=True)
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True, use_reloader=False)
+    # 🛡️ Sentinel: Ensure debug mode is disabled when binding to 0.0.0.0 to prevent RCE
+    is_debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    bind_host = '127.0.0.1' if is_debug else '0.0.0.0'
+    app.run(debug=is_debug, host=bind_host, port=5000, threaded=True, use_reloader=False)

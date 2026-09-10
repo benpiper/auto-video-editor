@@ -2,11 +2,11 @@ import os
 import logging
 import urllib.request
 from pathlib import Path
+import functools
 from typing import Optional, Tuple
 import torch
 import cv2
 import numpy as np
-from moviepy.editor import VideoFileClip
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -51,7 +51,7 @@ def download_model(model_name: str = 'mobilenetv3') -> Path:
                 if count * block_size < total_size:
                     print(f"\rDownloading: {percent}%", end='', flush=True)
                 else:
-                    print(f"\rDownloading: 100%")
+                    print("\rDownloading: 100%")
             
             urllib.request.urlretrieve(url, model_path, reporthook=reporthook)
             logging.info(f"Model downloaded to {model_path}")
@@ -64,6 +64,7 @@ def download_model(model_name: str = 'mobilenetv3') -> Path:
     return model_path
 
 
+@functools.lru_cache(maxsize=1)
 def load_rvm_model(model_name: str = 'mobilenetv3', device: str = 'auto') -> torch.nn.Module:
     """
     Load RVM model.
@@ -457,7 +458,7 @@ def remove_background(
             # Replace the video-only output with the version that has audio
             final_output = output_path if bg_color is not None else output_path_temp
             os.replace(temp_with_audio, final_output)
-            logging.info(f"Audio merged successfully")
+            logging.info("Audio merged successfully")
         else:
             logging.warning(f"Could not merge audio (video may have no audio track): {result.stderr}")
             # Clean up temp file

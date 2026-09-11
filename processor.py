@@ -4,6 +4,14 @@ from typing import List, Tuple, Optional, Callable
 
 import whisper
 from pydub import AudioSegment, silence
+import functools
+
+# ⚡ Bolt Optimization: Cache the large Whisper model in memory globally (maxsize=1).
+# Prevents severe performance bottlenecks and OOM issues caused by reloading the
+# model from disk on every invocation.
+@functools.lru_cache(maxsize=1)
+def _get_whisper_model(model_size: str):
+    return whisper.load_model(model_size)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -89,7 +97,7 @@ def detect_filler_words_whisper(audio_path: str, model_size: str = "large-v3-tur
         Tuple of (List of (start, end) tuples, transcript string).
     """
     logging.info(f"Loading Whisper model ({model_size})...")
-    model = whisper.load_model(model_size)
+    model = _get_whisper_model(model_size)
     logging.info("Transcribing audio for filler word detection...")
     # We use a prompt to encourage transcribing filler words if possible, though Whisper is trained to remove them.
     # Sometimes standard transcription removes them. We can try to rely on word-level timestamps.

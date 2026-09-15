@@ -1,0 +1,3 @@
+## 2026-09-15 - Interactive Element State Indicators
+**Learning:** Adding visual disabled states to interactive elements (like buttons) is critical. Without them, users (especially those with cognitive or mobility disabilities) can become confused or frustrated when buttons are disabled during processing or invalid input states but still visually appear active.
+**Action:** Always verify that interactive elements dynamically update their visual appearance to accurately reflect their true disabled state in the DOM (e.g., applying `opacity`, `cursor: not-allowed`, and restricting hover pseudo-classes via `:not(:disabled)`).
